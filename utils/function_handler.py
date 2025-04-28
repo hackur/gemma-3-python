@@ -2,93 +2,46 @@ import os
 import asyncio
 import psutil
 import json
+import subprocess
+import platform
 from typing import Dict, Any, Optional
 from pathlib import Path
 from loguru import logger
+from functools import wraps
+import time
+
+def timeout_handler(timeout: int = 30):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            try:
+                return await asyncio.wait_for(func(*args, **kwargs), timeout=timeout)
+            except asyncio.TimeoutError:
+                raise TimeoutError(f"Function execution timed out after {timeout} seconds")
+        return wrapper
+    return decorator
 
 class FunctionExecutor:
     def __init__(self, scripts_dir: str = "scripts"):
         self.scripts_dir = Path(scripts_dir)
         self.scripts_dir.mkdir(exist_ok=True)
-        
-        # Register available functions
-        self.available_functions = {
-            "execute_python": self._execute_python_script,
-            "get_system_info": self._get_system_info,
-        }
 
-    def get_function_schemas(self) -> list:
-        """Return the list of available function schemas"""
-        return [
-            {
-                "name": "execute_python",
-                "description": "Execute a Python script with specified arguments",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "script_name": {
-                            "type": "string",
-                            "description": "Name of the Python script to execute"
-                        },
-                        "arguments": {
-                            "type": "string",
-                            "description": "Command line arguments for the script"
-                        },
-                        "venv_path": {
-                            "type": "string",
-                            "description": "Optional path to virtual environment"
-                        }
-                    },
-                    "required": ["script_name"]
-                }
-            },
-            {
-                "name": "get_system_info",
-                "description": "Get system information",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "info_type": {
-                            "type": "string",
-                            "enum": ["cpu", "memory", "disk", "all"],
-                            "description": "Type of system information to retrieve"
-                        }
-                    },
-                    "required": ["info_type"]
-                }
-            }
-        ]
-
-    async def execute_function(self, function_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a function by name with given arguments"""
-        if function_name not in self.available_functions:
-            raise ValueError(f"Function {function_name} not found")
-            
-        try:
-            result = await self.available_functions[function_name](**arguments)
-            return {
-                "status": "success",
-                "result": result
-            }
-        except Exception as e:
-            logger.error(f"Error executing function {function_name}: {e}")
-            return {
-                "status": "error",
-                "error": str(e)
-            }
-
-    async def _execute_python_script(
+    async def execute_python(
         self,
         script_name: str,
         arguments: str = "",
+        timeout: int = 30,
         venv_path: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Execute a Python script with optional virtual environment"""
+        """Execute a Python script with timeout and virtual environment support"""
         script_path = self.scripts_dir / script_name
         
         if not script_path.exists():
-            raise FileNotFoundError(f"Script {script_name} not found")
-        
+            return {
+                "status": "error",
+                "error": f"Script {script_name} not found"
+            }
+            
         cmd = []
         if venv_path:
             venv_path = Path(venv_path)
@@ -96,10 +49,12 @@ class FunctionExecutor:
                 activate_script = venv_path / "bin" / "activate"
                 cmd.extend(["/bin/bash", "-c", f"source {activate_script} && python {script_path} {arguments}"])
             else:
-                raise ValueError(f"Virtual environment not found at {venv_path}")
+                return {
+                    "status": "error",
+                    "error": f"Virtual environment not found at {venv_path}"
+                }
         else:
-            python_cmd = "python"
-            cmd.extend([python_cmd, str(script_path)])
+            cmd.extend(["python", str(script_path)])
             if arguments:
                 cmd.extend(arguments.split())
 
@@ -109,30 +64,39 @@ class FunctionExecutor:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
-            stdout, stderr = await process.communicate()
+            
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
             
             return {
+                "status": "success",
                 "stdout": stdout.decode() if stdout else "",
                 "stderr": stderr.decode() if stderr else "",
-                "return_code": process.returncode
+                "returncode": process.returncode
+            }
+        except asyncio.TimeoutError:
+            return {
+                "status": "error",
+                "error": f"Script execution timed out after {timeout} seconds"
             }
         except Exception as e:
-            raise RuntimeError(f"Failed to execute script: {e}")
-
-    async def _get_system_info(self, info_type: str = "all") -> Dict[str, Any]:
+            return {
+                "status": "error",
+                "error": str(e)
+            }
+            
+    async def get_system_info(self, info_type: str = "all") -> Dict[str, Any]:
         """Get system information based on the requested type"""
-        info = {}
-        
         try:
+            info = {}
+            
             if info_type in ["cpu", "all"]:
-                cpu_info = {
+                info["cpu"] = {
                     "percent": psutil.cpu_percent(interval=1),
                     "count": psutil.cpu_count(),
-                    "freq": psutil.cpu_freq()._asdict() if hasattr(psutil.cpu_freq(), '_asdict') else None,
-                    "stats": psutil.cpu_stats()._asdict(),
+                    "freq": psutil.cpu_freq()._asdict() if psutil.cpu_freq() else None,
+                    "stats": psutil.cpu_stats()._asdict()
                 }
-                info["cpu"] = cpu_info
-            
+                
             if info_type in ["memory", "all"]:
                 memory = psutil.virtual_memory()
                 info["memory"] = {
@@ -151,8 +115,36 @@ class FunctionExecutor:
                     "free": disk.free,
                     "percent": disk.percent
                 }
+                
+            if not info:
+                return {
+                    "status": "error",
+                    "error": f"Invalid info type: {info_type}"
+                }
+                
+            return {
+                "status": "success",
+                "info": info
+            }
             
-            return info
         except Exception as e:
-            logger.error(f"Error getting system info: {e}")
-            return {"error": str(e)}
+            return {
+                "status": "error",
+                "error": str(e)
+            }
+
+    async def execute_function(
+        self,
+        name: str,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Execute a registered function by name"""
+        if name == "execute_python":
+            return await self.execute_python(**kwargs)
+        elif name == "get_system_info":
+            return await self.get_system_info(**kwargs)
+        else:
+            return {
+                "status": "error",
+                "error": f"Unknown function: {name}"
+            }

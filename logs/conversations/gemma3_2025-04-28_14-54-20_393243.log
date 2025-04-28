@@ -1,0 +1,7 @@
+2025-04-28 14:54:20.400 | INFO     | gemma3:<module>:134 - Loading model from gemma-3-4b-it-q4_0/gemma-3-4b-it-q4_0.gguf
+2025-04-28 14:54:20.922 | INFO     | gemma3:<module>:141 - Model loaded successfully
+2025-04-28 14:54:20.962 | INFO     | gemma3:create_chat_completion:164 - Starting conversation 20250428_145420
+2025-04-28 14:54:21.793 | INFO     | gemma3:create_chat_completion:164 - Starting conversation 20250428_145421
+2025-04-28 14:54:22.403 | INFO     | gemma3:create_chat_completion:164 - Starting conversation 20250428_145422
+2025-04-28 14:54:22.642 | INFO     | gemma3:create_chat_completion:164 - Starting conversation 20250428_145422
+2025-04-28 14:54:24.869 | INFO     | gemma3:create_chat_completion:164 - Starting conversation 20250428_145424

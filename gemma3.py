@@ -3,6 +3,7 @@ import asyncio
 from typing import List, Optional, Union, Dict, Any
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from llama_cpp import Llama
 from loguru import logger
@@ -159,114 +160,101 @@ async def list_models():
 @app.post("/v1/chat/completions")
 async def create_chat_completion(request: ChatCompletionRequest):
     try:
+        # Validate messages array
+        if not request.messages:
+            raise HTTPException(status_code=422, detail="Messages array cannot be empty")
+            
         # Create new conversation or get existing
         conv_id = conversation_logger.create_conversation()
         logger.info(f"Starting conversation {conv_id}")
         
-        # Prepare messages
-        messages = request.messages
-        
-        # Format prompt with system message and conversation
-        formatted_prompt = f"{SYSTEM_PROMPT}\n\n"
-        
-        # Add conversation context
-        for msg in messages:
+        # Format conversation into a single string
+        messages = []
+        for msg in request.messages:
             if msg.role == "system":
-                formatted_prompt += f"System: {msg.content}\n"
+                messages.append(f"System: {msg.content}")
             elif msg.role == "user":
-                formatted_prompt += f"User: {msg.content}\n"
+                messages.append(f"Human: {msg.content}")
             elif msg.role == "assistant":
-                formatted_prompt += f"Assistant: {msg.content}\n"
+                messages.append(f"Assistant: {msg.content}")
         
-        # Add function definitions if provided
-        if request.functions:
-            formatted_prompt += "\nAvailable functions:\n"
-            for func in request.functions:
-                formatted_prompt += f"Function: {func.name}\n"
-                formatted_prompt += f"Description: {func.description}\n"
-                formatted_prompt += f"Parameters: {json.dumps(func.parameters, indent=2)}\n\n"
-            formatted_prompt += "Remember to respond with a valid JSON function call if needed.\n"
-        
-        formatted_prompt += "\nAssistant:"
+        # Join messages with clear separators
+        formatted_prompt = "\n".join(messages) + "\nAssistant:"
 
-        # Log the formatted prompt
-        logger.debug(f"Formatted prompt for conversation {conv_id}:\n{formatted_prompt}")
-        
-        # Generate completion with lower temperature for more focused responses
+        # Handle streaming responses
+        if request.stream:
+            async def generate():
+                completion = model.create_completion(
+                    prompt=formatted_prompt,
+                    temperature=request.temperature or 0.7,
+                    max_tokens=2048,
+                    stop=["Human:", "System:", "\n\n"],
+                    stream=True
+                )
+                
+                for token in completion:
+                    chunk = {
+                        "id": f"chatcmpl-{conv_id}",
+                        "object": "chat.completion.chunk",
+                        "created": int(time.time()),
+                        "model": request.model,
+                        "choices": [{
+                            "index": 0,
+                            "delta": {"content": token["choices"][0]["text"]},
+                            "finish_reason": None
+                        }]
+                    }
+                    yield f"data: {json.dumps(chunk)}\n\n"
+                
+                # Send final chunk
+                yield f"data: {json.dumps({'choices':[{'finish_reason':'stop'}]})}\n\n"
+                yield "data: [DONE]\n\n"
+            
+            return StreamingResponse(generate(), media_type="text/event-stream")
+
+        # Generate regular completion
         completion = model.create_completion(
             prompt=formatted_prompt,
-            temperature=0.1,  # Lower temperature for more deterministic responses
+            temperature=request.temperature or 0.7,
             max_tokens=2048,
-            stop=["User:", "System:", "\n\n"],
+            stop=["Human:", "System:", "\n\n"],
+            stream=False
         )
 
-        response_text = completion["choices"][0]["text"].strip()
-        logger.debug(f"Raw model response for conversation {conv_id}:\n{response_text}")
-        
-        # Parse function calls if present
-        function_call = None
-        if request.functions and "{" in response_text and "}" in response_text:
-            try:
-                # Find the JSON object in the response
-                start_idx = response_text.find("{")
-                end_idx = response_text.rfind("}") + 1
-                potential_json = response_text[start_idx:end_idx]
-                
-                # Parse and validate the JSON
-                function_json = json.loads(potential_json)
-                
-                if "name" in function_json and "arguments" in function_json:
-                    # Validate function exists
-                    if function_json["name"] in [f.name for f in request.functions]:
-                        # Execute function
-                        function_call = {
-                            "name": function_json["name"],
-                            "arguments": json.dumps(function_json["arguments"])
-                        }
-                        logger.info(f"Executing function {function_json['name']} for conversation {conv_id}")
-                        
-                        result = await function_executor.execute_function(
-                            function_json["name"],
-                            function_json["arguments"]
-                        )
-                        response_text = json.dumps(result, indent=2)
-                        logger.debug(f"Function result for conversation {conv_id}:\n{response_text}")
-            except json.JSONDecodeError as e:
-                logger.warning(f"Failed to parse function call JSON in conversation {conv_id}: {e}")
-
-        # Prepare response
-        response = ChatCompletionResponse(
-            id=f"chatcmpl-{int(time.time())}",
-            created=int(time.time()),
-            model="gemma-3-4b-it",
-            choices=[{
+        response = {
+            "id": f"chatcmpl-{conv_id}",
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": request.model,
+            "choices": [{
                 "index": 0,
                 "message": {
                     "role": "assistant",
-                    "content": response_text,
-                    "function_call": function_call
+                    "content": completion["choices"][0]["text"].strip()
                 },
                 "finish_reason": "stop"
             }],
-            usage={
+            "usage": {
                 "prompt_tokens": len(formatted_prompt.split()),
-                "completion_tokens": len(response_text.split()),
-                "total_tokens": len(formatted_prompt.split()) + len(response_text.split())
+                "completion_tokens": len(completion["choices"][0]["text"].split()),
+                "total_tokens": len(formatted_prompt.split()) + len(completion["choices"][0]["text"].split())
             }
-        )
+        }
 
         # Log the interaction
         conversation_logger.log_interaction(
-            conv_id,
-            request.model_dump(),
-            response.model_dump(),
-            formatted_prompt
+            conv_id=conv_id,
+            request=request.model_dump(),  # Using model_dump() instead of deprecated dict()
+            response=response,
+            prompt=formatted_prompt
         )
-        
+
         return response
 
     except Exception as e:
         logger.error(f"Error in chat completion: {e}")
+        if isinstance(e, HTTPException):
+            raise
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
