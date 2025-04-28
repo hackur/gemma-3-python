@@ -12,6 +12,31 @@ lsof -ti:1337 | xargs kill -9 2>/dev/null || echo -e "${RED}No existing process 
 # Wait a moment for process cleanup
 sleep 1
 
+echo -e "${BLUE}Starting Gemma3 API Server...${NC}"
+cd .. && uv run python gemma3.py &
+SERVER_PID=$!
+
+# Function to check if server is ready
+wait_for_server() {
+    max_attempts=30
+    attempt=1
+    while [ $attempt -le $max_attempts ]; do
+        if curl -s http://127.0.0.1:1337/v1/models > /dev/null; then
+            echo -e "${GREEN}Server is ready!${NC}"
+            return 0
+        fi
+        echo -e "${BLUE}Waiting for server to start (attempt $attempt/$max_attempts)...${NC}"
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+    echo -e "${RED}Server failed to start within ${max_attempts} seconds${NC}"
+    kill -9 $SERVER_PID 2>/dev/null
+    exit 1
+}
+
+# Wait for server to be ready
+wait_for_server
+
 echo -e "${BLUE}Testing Gemma3 API Server${NC}"
 
 # Test 1: List Models
@@ -102,3 +127,13 @@ curl http://127.0.0.1:1337/v1/chat/completions \
       }
     ]
   }'
+
+# Cleanup at the end
+cleanup() {
+    echo -e "\n${BLUE}Cleaning up...${NC}"
+    kill -9 $SERVER_PID 2>/dev/null
+    exit
+}
+
+# Set up cleanup on script exit
+trap cleanup EXIT INT TERM
