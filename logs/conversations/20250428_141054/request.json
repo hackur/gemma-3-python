@@ -1,0 +1,37 @@
+{
+  "model": "gemma-3-4b-it",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Get all system information including CPU, memory, and disk usage",
+      "name": null,
+      "function_call": null
+    }
+  ],
+  "functions": [
+    {
+      "name": "get_system_info",
+      "description": "Get system information",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "info_type": {
+            "type": "string",
+            "enum": [
+              "cpu",
+              "memory",
+              "disk",
+              "all"
+            ]
+          }
+        },
+        "required": [
+          "info_type"
+        ]
+      }
+    }
+  ],
+  "temperature": 0.7,
+  "stream": false
+}
+---
