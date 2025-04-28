@@ -1,0 +1,27 @@
+[project]
+name = "gemma3"
+version = "0.1.0"
+description = "OpenAI-compatible server for Gemma 3 with function calling support"
+authors = [{name = "AI Developer"}]
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+    "llama-cpp-python>=0.2.11",
+    "pydantic>=2.4.2",
+    "python-dotenv>=1.0.0",
+    "loguru>=0.7.2",
+    "psutil>=5.9.0",
+    "typing-extensions>=4.8.0"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --cov=gemma3"
+
+[project.scripts]
+gemma3 = "gemma3:main"
