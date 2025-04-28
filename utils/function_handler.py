@@ -1,5 +1,6 @@
 import os
-import subprocess
+import asyncio
+import psutil
 import json
 from typing import Dict, Any, Optional
 from pathlib import Path
@@ -14,9 +15,8 @@ class FunctionExecutor:
         self.available_functions = {
             "execute_python": self._execute_python_script,
             "get_system_info": self._get_system_info,
-            # Add more functions here as needed
         }
-        
+
     def get_function_schemas(self) -> list:
         """Return the list of available function schemas"""
         return [
@@ -93,13 +93,13 @@ class FunctionExecutor:
         if venv_path:
             venv_path = Path(venv_path)
             if venv_path.exists():
-                # Construct virtual environment activation command
                 activate_script = venv_path / "bin" / "activate"
                 cmd.extend(["/bin/bash", "-c", f"source {activate_script} && python {script_path} {arguments}"])
             else:
                 raise ValueError(f"Virtual environment not found at {venv_path}")
         else:
-            cmd.extend(["python", str(script_path)])
+            python_cmd = "python"
+            cmd.extend([python_cmd, str(script_path)])
             if arguments:
                 cmd.extend(arguments.split())
 
@@ -121,30 +121,38 @@ class FunctionExecutor:
 
     async def _get_system_info(self, info_type: str = "all") -> Dict[str, Any]:
         """Get system information based on the requested type"""
-        import psutil
-        
         info = {}
-        if info_type in ["cpu", "all"]:
-            info["cpu"] = {
-                "percent": psutil.cpu_percent(interval=1),
-                "count": psutil.cpu_count()
-            }
         
-        if info_type in ["memory", "all"]:
-            memory = psutil.virtual_memory()
-            info["memory"] = {
-                "total": memory.total,
-                "available": memory.available,
-                "percent": memory.percent
-            }
+        try:
+            if info_type in ["cpu", "all"]:
+                cpu_info = {
+                    "percent": psutil.cpu_percent(interval=1),
+                    "count": psutil.cpu_count(),
+                    "freq": psutil.cpu_freq()._asdict() if hasattr(psutil.cpu_freq(), '_asdict') else None,
+                    "stats": psutil.cpu_stats()._asdict(),
+                }
+                info["cpu"] = cpu_info
             
-        if info_type in ["disk", "all"]:
-            disk = psutil.disk_usage("/")
-            info["disk"] = {
-                "total": disk.total,
-                "used": disk.used,
-                "free": disk.free,
-                "percent": disk.percent
-            }
+            if info_type in ["memory", "all"]:
+                memory = psutil.virtual_memory()
+                info["memory"] = {
+                    "total": memory.total,
+                    "available": memory.available,
+                    "percent": memory.percent,
+                    "used": memory.used,
+                    "free": memory.free
+                }
+                
+            if info_type in ["disk", "all"]:
+                disk = psutil.disk_usage("/")
+                info["disk"] = {
+                    "total": disk.total,
+                    "used": disk.used,
+                    "free": disk.free,
+                    "percent": disk.percent
+                }
             
-        return info
+            return info
+        except Exception as e:
+            logger.error(f"Error getting system info: {e}")
+            return {"error": str(e)}

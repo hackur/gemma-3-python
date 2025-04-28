@@ -168,6 +168,8 @@ async def create_chat_completion(request: ChatCompletionRequest):
         
         # Format prompt with system message and conversation
         formatted_prompt = f"{SYSTEM_PROMPT}\n\n"
+        
+        # Add conversation context
         for msg in messages:
             if msg.role == "system":
                 formatted_prompt += f"System: {msg.content}\n"
@@ -175,22 +177,27 @@ async def create_chat_completion(request: ChatCompletionRequest):
                 formatted_prompt += f"User: {msg.content}\n"
             elif msg.role == "assistant":
                 formatted_prompt += f"Assistant: {msg.content}\n"
-                
+        
         # Add function definitions if provided
         if request.functions:
             formatted_prompt += "\nAvailable functions:\n"
             for func in request.functions:
-                formatted_prompt += f"{json.dumps(func.dict(), indent=2)}\n"
+                formatted_prompt += f"Function: {func.name}\n"
+                formatted_prompt += f"Description: {func.description}\n"
+                formatted_prompt += f"Parameters: {json.dumps(func.parameters, indent=2)}\n\n"
+            formatted_prompt += "Remember to respond with a valid JSON function call if needed.\n"
+        
+        formatted_prompt += "\nAssistant:"
 
         # Log the formatted prompt
         logger.debug(f"Formatted prompt for conversation {conv_id}:\n{formatted_prompt}")
         
-        # Generate completion
+        # Generate completion with lower temperature for more focused responses
         completion = model.create_completion(
             prompt=formatted_prompt,
-            temperature=request.temperature or 0.1,
+            temperature=0.1,  # Lower temperature for more deterministic responses
             max_tokens=2048,
-            stop=["User:", "System:", "```"],
+            stop=["User:", "System:", "\n\n"],
         )
 
         response_text = completion["choices"][0]["text"].strip()
@@ -200,19 +207,24 @@ async def create_chat_completion(request: ChatCompletionRequest):
         function_call = None
         if request.functions and "{" in response_text and "}" in response_text:
             try:
-                # Extract JSON from the response
-                json_str = response_text[response_text.find("{"):response_text.rfind("}")+1]
-                function_json = json.loads(json_str)
+                # Find the JSON object in the response
+                start_idx = response_text.find("{")
+                end_idx = response_text.rfind("}") + 1
+                potential_json = response_text[start_idx:end_idx]
+                
+                # Parse and validate the JSON
+                function_json = json.loads(potential_json)
                 
                 if "name" in function_json and "arguments" in function_json:
-                    # Execute function if valid
+                    # Validate function exists
                     if function_json["name"] in [f.name for f in request.functions]:
+                        # Execute function
                         function_call = {
                             "name": function_json["name"],
                             "arguments": json.dumps(function_json["arguments"])
                         }
                         logger.info(f"Executing function {function_json['name']} for conversation {conv_id}")
-                        # Execute function
+                        
                         result = await function_executor.execute_function(
                             function_json["name"],
                             function_json["arguments"]
@@ -221,8 +233,8 @@ async def create_chat_completion(request: ChatCompletionRequest):
                         logger.debug(f"Function result for conversation {conv_id}:\n{response_text}")
             except json.JSONDecodeError as e:
                 logger.warning(f"Failed to parse function call JSON in conversation {conv_id}: {e}")
-                pass
 
+        # Prepare response
         response = ChatCompletionResponse(
             id=f"chatcmpl-{int(time.time())}",
             created=int(time.time()),
@@ -246,8 +258,8 @@ async def create_chat_completion(request: ChatCompletionRequest):
         # Log the interaction
         conversation_logger.log_interaction(
             conv_id,
-            request.dict(),
-            response.dict(),
+            request.model_dump(),
+            response.model_dump(),
             formatted_prompt
         )
         

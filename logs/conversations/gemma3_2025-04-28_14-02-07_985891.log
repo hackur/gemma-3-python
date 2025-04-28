@@ -1,0 +1,256 @@
+2025-04-28 14:02:07.994 | INFO     | __main__:<module>:134 - Loading model from gemma-3-4b-it-q4_0/gemma-3-4b-it-q4_0.gguf
+2025-04-28 14:02:08.444 | INFO     | __main__:<module>:141 - Model loaded successfully
+2025-04-28 14:02:08.454 | INFO     | __main__:<module>:274 - Starting Gemma3 API Server...
+2025-04-28 14:02:08.497 | INFO     | __main__:create_chat_completion:164 - Starting conversation 20250428_140208
+2025-04-28 14:02:08.497 | DEBUG    | __main__:create_chat_completion:193 - Formatted prompt for conversation 20250428_140208:
+You are a helpful AI assistant with access to function calling capabilities.
+
+When you need to use a function:
+1. Analyze if the user's request requires using an available function
+2. If yes, respond ONLY with a JSON object in this format:
+{
+    "name": "function_name",
+    "arguments": {
+        "param1": "value1",
+        "param2": "value2"
+    }
+}
+3. If no function is needed, respond naturally as a helpful assistant
+
+Your responses should be:
+- Concise and direct
+- Focused on the task at hand
+- In valid JSON format when calling functions
+- In natural language when no function is needed
+
+DO NOT:
+- Include explanations when calling functions
+- Mix JSON and natural language
+- Make assumptions about unavailable functions
+- Use functions not listed in the available functions section
+
+User: What is the current CPU usage?
+
+Available functions:
+Function: get_system_info
+Description: Get system information
+Parameters: {
+  "type": "object",
+  "properties": {
+    "info_type": {
+      "type": "string",
+      "enum": [
+        "cpu",
+        "memory",
+        "disk",
+        "all"
+      ]
+    }
+  },
+  "required": [
+    "info_type"
+  ]
+}
+
+Remember to respond with a valid JSON function call if needed.
+
+Assistant:
+2025-04-28 14:02:12.766 | DEBUG    | __main__:create_chat_completion:204 - Raw model response for conversation 20250428_140208:
+```json
+{
+    "name": "get_system_info",
+    "arguments": {
+        "info_type": "cpu"
+    }
+}
+```
+2025-04-28 14:02:12.766 | INFO     | __main__:create_chat_completion:226 - Executing function get_system_info for conversation 20250428_140208
+2025-04-28 14:02:13.773 | DEBUG    | __main__:create_chat_completion:233 - Function result for conversation 20250428_140208:
+{
+  "status": "success",
+  "result": {
+    "cpu": {
+      "percent": 26.9,
+      "count": 16,
+      "freq": {
+        "current": 4056,
+        "min": 1020,
+        "max": 4056
+      },
+      "stats": {
+        "ctx_switches": 95242,
+        "interrupts": 248673,
+        "soft_interrupts": 149695005,
+        "syscalls": 1740587
+      }
+    }
+  }
+}
+2025-04-28 14:02:13.794 | INFO     | __main__:create_chat_completion:164 - Starting conversation 20250428_140213
+2025-04-28 14:02:13.794 | DEBUG    | __main__:create_chat_completion:193 - Formatted prompt for conversation 20250428_140213:
+You are a helpful AI assistant with access to function calling capabilities.
+
+When you need to use a function:
+1. Analyze if the user's request requires using an available function
+2. If yes, respond ONLY with a JSON object in this format:
+{
+    "name": "function_name",
+    "arguments": {
+        "param1": "value1",
+        "param2": "value2"
+    }
+}
+3. If no function is needed, respond naturally as a helpful assistant
+
+Your responses should be:
+- Concise and direct
+- Focused on the task at hand
+- In valid JSON format when calling functions
+- In natural language when no function is needed
+
+DO NOT:
+- Include explanations when calling functions
+- Mix JSON and natural language
+- Make assumptions about unavailable functions
+- Use functions not listed in the available functions section
+
+User: Run the sample script with argument test
+
+Available functions:
+Function: execute_python
+Description: Execute a Python script with specified arguments
+Parameters: {
+  "type": "object",
+  "properties": {
+    "script_name": {
+      "type": "string",
+      "description": "Name of the Python script to execute"
+    },
+    "arguments": {
+      "type": "string",
+      "description": "Command line arguments for the script"
+    }
+  },
+  "required": [
+    "script_name"
+  ]
+}
+
+Remember to respond with a valid JSON function call if needed.
+
+Assistant:
+2025-04-28 14:02:16.848 | DEBUG    | __main__:create_chat_completion:204 - Raw model response for conversation 20250428_140213:
+```json
+{
+    "name": "execute_python",
+    "arguments": {
+        "script_name": "test",
+        "arguments": "test"
+    }
+}
+```
+2025-04-28 14:02:16.848 | INFO     | __main__:create_chat_completion:226 - Executing function execute_python for conversation 20250428_140213
+2025-04-28 14:02:16.848 | ERROR    | utils.function_handler:execute_function:74 - Error executing function execute_python: Script test not found
+2025-04-28 14:02:16.848 | DEBUG    | __main__:create_chat_completion:233 - Function result for conversation 20250428_140213:
+{
+  "status": "error",
+  "error": "Script test not found"
+}
+2025-04-28 14:02:16.857 | INFO     | __main__:create_chat_completion:164 - Starting conversation 20250428_140216
+2025-04-28 14:02:16.857 | DEBUG    | __main__:create_chat_completion:193 - Formatted prompt for conversation 20250428_140216:
+You are a helpful AI assistant with access to function calling capabilities.
+
+When you need to use a function:
+1. Analyze if the user's request requires using an available function
+2. If yes, respond ONLY with a JSON object in this format:
+{
+    "name": "function_name",
+    "arguments": {
+        "param1": "value1",
+        "param2": "value2"
+    }
+}
+3. If no function is needed, respond naturally as a helpful assistant
+
+Your responses should be:
+- Concise and direct
+- Focused on the task at hand
+- In valid JSON format when calling functions
+- In natural language when no function is needed
+
+DO NOT:
+- Include explanations when calling functions
+- Mix JSON and natural language
+- Make assumptions about unavailable functions
+- Use functions not listed in the available functions section
+
+User: Get all system information including CPU, memory, and disk usage
+
+Available functions:
+Function: get_system_info
+Description: Get system information
+Parameters: {
+  "type": "object",
+  "properties": {
+    "info_type": {
+      "type": "string",
+      "enum": [
+        "cpu",
+        "memory",
+        "disk",
+        "all"
+      ]
+    }
+  },
+  "required": [
+    "info_type"
+  ]
+}
+
+Remember to respond with a valid JSON function call if needed.
+
+Assistant:
+2025-04-28 14:02:20.034 | DEBUG    | __main__:create_chat_completion:204 - Raw model response for conversation 20250428_140216:
+```json
+{
+    "name": "get_system_info",
+    "arguments": {
+        "info_type": "all"
+    }
+}
+```
+2025-04-28 14:02:20.034 | INFO     | __main__:create_chat_completion:226 - Executing function get_system_info for conversation 20250428_140216
+2025-04-28 14:02:21.042 | DEBUG    | __main__:create_chat_completion:233 - Function result for conversation 20250428_140216:
+{
+  "status": "success",
+  "result": {
+    "cpu": {
+      "percent": 27.1,
+      "count": 16,
+      "freq": {
+        "current": 4056,
+        "min": 1020,
+        "max": 4056
+      },
+      "stats": {
+        "ctx_switches": 91299,
+        "interrupts": 247693,
+        "soft_interrupts": 149749477,
+        "syscalls": 1740480
+      }
+    },
+    "memory": {
+      "total": 68719476736,
+      "available": 30011867136,
+      "percent": 56.3,
+      "used": 32475676672,
+      "free": 964100096
+    },
+    "disk": {
+      "total": 1995218165760,
+      "used": 11239985152,
+      "free": 33063673856,
+      "percent": 25.4
+    }
+  }
+}

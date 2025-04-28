@@ -1,0 +1,26 @@
+{
+  "id": "chatcmpl-1745874136",
+  "object": "chat.completion",
+  "created": 1745874136,
+  "model": "gemma-3-4b-it",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\n  \"status\": \"error\",\n  \"error\": \"Script test not found\"\n}",
+        "function_call": {
+          "name": "execute_python",
+          "arguments": "{\"script_name\": \"test\", \"arguments\": \"test\"}"
+        }
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 196,
+    "completion_tokens": 9,
+    "total_tokens": 205
+  }
+}
+---

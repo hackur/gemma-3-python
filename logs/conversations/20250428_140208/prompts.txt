@@ -1,0 +1,54 @@
+=== 2025-04-28T14:02:13.774799 ===
+You are a helpful AI assistant with access to function calling capabilities.
+
+When you need to use a function:
+1. Analyze if the user's request requires using an available function
+2. If yes, respond ONLY with a JSON object in this format:
+{
+    "name": "function_name",
+    "arguments": {
+        "param1": "value1",
+        "param2": "value2"
+    }
+}
+3. If no function is needed, respond naturally as a helpful assistant
+
+Your responses should be:
+- Concise and direct
+- Focused on the task at hand
+- In valid JSON format when calling functions
+- In natural language when no function is needed
+
+DO NOT:
+- Include explanations when calling functions
+- Mix JSON and natural language
+- Make assumptions about unavailable functions
+- Use functions not listed in the available functions section
+
+User: What is the current CPU usage?
+
+Available functions:
+Function: get_system_info
+Description: Get system information
+Parameters: {
+  "type": "object",
+  "properties": {
+    "info_type": {
+      "type": "string",
+      "enum": [
+        "cpu",
+        "memory",
+        "disk",
+        "all"
+      ]
+    }
+  },
+  "required": [
+    "info_type"
+  ]
+}
+
+Remember to respond with a valid JSON function call if needed.
+
+Assistant:
+---
