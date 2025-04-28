@@ -1,0 +1,4 @@
+gemma-3-4b-it-q4_0/gemma-3-4b-it-q4_0.gguf
+gemma-3-4b-it-q4_0/mmproj-model-f16-4B.gguf
+logs/conversations/gemma3_2025-04-28_13-55-03_634912.log
+utils/__pycache__/function_handler.cpython-313.pyc
