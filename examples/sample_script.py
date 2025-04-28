@@ -7,8 +7,7 @@ def main():
     
     result = {
         "received_args": args,
-        "processed": True,
-        "count": len(args)
+        "processed": True
     }
     
     print(json.dumps(result, indent=2))

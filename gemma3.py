@@ -206,8 +206,19 @@ async def create_chat_completion(request: ChatCompletionRequest):
                     }
                     yield f"data: {json.dumps(chunk)}\n\n"
                 
-                # Send final chunk
-                yield f"data: {json.dumps({'choices':[{'finish_reason':'stop'}]})}\n\n"
+                # Send final chunk with finish_reason
+                final_chunk = {
+                    "id": f"chatcmpl-{conv_id}",
+                    "object": "chat.completion.chunk",
+                    "created": int(time.time()),
+                    "model": request.model,
+                    "choices": [{
+                        "index": 0,
+                        "delta": {},
+                        "finish_reason": "stop"
+                    }]
+                }
+                yield f"data: {json.dumps(final_chunk)}\n\n"
                 yield "data: [DONE]\n\n"
             
             return StreamingResponse(generate(), media_type="text/event-stream")

@@ -1,0 +1,22 @@
+{
+  "id": "chatcmpl-20250428_151927",
+  "object": "chat.completion",
+  "created": 1745878767,
+  "model": "gemma-3-4b-it",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Your name is Bob."
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 13,
+    "completion_tokens": 4,
+    "total_tokens": 17
+  }
+}
+---

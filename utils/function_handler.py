@@ -4,6 +4,7 @@ import psutil
 import json
 import subprocess
 import platform
+import shlex
 from typing import Dict, Any, Optional
 from pathlib import Path
 from loguru import logger
@@ -17,15 +18,19 @@ def timeout_handler(timeout: int = 30):
             try:
                 return await asyncio.wait_for(func(*args, **kwargs), timeout=timeout)
             except asyncio.TimeoutError:
-                raise TimeoutError(f"Function execution timed out after {timeout} seconds")
+                return {
+                    "status": "error",
+                    "error": "timeout"
+                }
         return wrapper
     return decorator
 
 class FunctionExecutor:
-    def __init__(self, scripts_dir: str = "scripts"):
-        self.scripts_dir = Path(scripts_dir)
+    def __init__(self):
+        # Store scripts in examples directory by default
+        self.scripts_dir = Path("examples")
         self.scripts_dir.mkdir(exist_ok=True)
-
+        
     async def execute_python(
         self,
         script_name: str,
@@ -56,7 +61,8 @@ class FunctionExecutor:
         else:
             cmd.extend(["python", str(script_path)])
             if arguments:
-                cmd.extend(arguments.split())
+                # Use shlex to properly parse quoted arguments
+                cmd.extend(shlex.split(arguments))
 
         try:
             process = await asyncio.create_subprocess_exec(
@@ -65,19 +71,38 @@ class FunctionExecutor:
                 stderr=asyncio.subprocess.PIPE
             )
             
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
-            
-            return {
-                "status": "success",
-                "stdout": stdout.decode() if stdout else "",
-                "stderr": stderr.decode() if stderr else "",
-                "returncode": process.returncode
-            }
-        except asyncio.TimeoutError:
-            return {
-                "status": "error",
-                "error": f"Script execution timed out after {timeout} seconds"
-            }
+            try:
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
+                
+                # Check for script execution errors
+                if process.returncode != 0:
+                    return {
+                        "status": "error",
+                        "error": stderr.decode() if stderr else "Script execution failed",
+                        "stdout": stdout.decode() if stdout else "",
+                        "stderr": stderr.decode() if stderr else "",
+                        "return_code": process.returncode
+                    }
+                
+                return {
+                    "status": "success",
+                    "result": {
+                        "stdout": stdout.decode() if stdout else "",
+                        "stderr": stderr.decode() if stderr else "",
+                        "return_code": process.returncode
+                    }
+                }
+            except asyncio.TimeoutError:
+                try:
+                    process.terminate()
+                    await process.wait()
+                except:
+                    pass
+                return {
+                    "status": "error",
+                    "error": "timeout"
+                }
+                
         except Exception as e:
             return {
                 "status": "error",
@@ -87,10 +112,10 @@ class FunctionExecutor:
     async def get_system_info(self, info_type: str = "all") -> Dict[str, Any]:
         """Get system information based on the requested type"""
         try:
-            info = {}
+            result = {}
             
             if info_type in ["cpu", "all"]:
-                info["cpu"] = {
+                result["cpu"] = {
                     "percent": psutil.cpu_percent(interval=1),
                     "count": psutil.cpu_count(),
                     "freq": psutil.cpu_freq()._asdict() if psutil.cpu_freq() else None,
@@ -99,7 +124,7 @@ class FunctionExecutor:
                 
             if info_type in ["memory", "all"]:
                 memory = psutil.virtual_memory()
-                info["memory"] = {
+                result["memory"] = {
                     "total": memory.total,
                     "available": memory.available,
                     "percent": memory.percent,
@@ -109,14 +134,14 @@ class FunctionExecutor:
                 
             if info_type in ["disk", "all"]:
                 disk = psutil.disk_usage("/")
-                info["disk"] = {
+                result["disk"] = {
                     "total": disk.total,
                     "used": disk.used,
                     "free": disk.free,
                     "percent": disk.percent
                 }
                 
-            if not info:
+            if not result:
                 return {
                     "status": "error",
                     "error": f"Invalid info type: {info_type}"
@@ -124,7 +149,7 @@ class FunctionExecutor:
                 
             return {
                 "status": "success",
-                "info": info
+                "result": result
             }
             
         except Exception as e:

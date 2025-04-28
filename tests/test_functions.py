@@ -16,9 +16,10 @@ def function_executor():
 def sample_script_path():
     return Path("examples/sample_script.py")
 
-def test_execute_python(function_executor, sample_script_path):
+@pytest.mark.asyncio
+async def test_execute_python(function_executor, sample_script_path):
     """Test Python script execution"""
-    result = function_executor.execute_python(
+    result = await function_executor.execute_python(
         script_name="sample_script.py",
         arguments="test"
     )
@@ -31,39 +32,41 @@ def test_execute_python(function_executor, sample_script_path):
     assert output["received_args"] == ["test"]
     assert output["processed"] is True
 
-def test_get_system_info(function_executor):
+@pytest.mark.asyncio
+async def test_get_system_info(function_executor):
     """Test system information retrieval"""
     # Test CPU info
-    cpu_result = function_executor.get_system_info(info_type="cpu")
+    cpu_result = await function_executor.get_system_info(info_type="cpu")
     assert cpu_result["status"] == "success"
     assert "cpu" in cpu_result["result"]
     assert "percent" in cpu_result["result"]["cpu"]
     
     # Test memory info
-    mem_result = function_executor.get_system_info(info_type="memory")
+    mem_result = await function_executor.get_system_info(info_type="memory")
     assert mem_result["status"] == "success"
     assert "memory" in mem_result["result"]
     assert "total" in mem_result["result"]["memory"]
     assert "used" in mem_result["result"]["memory"]
     
     # Test disk info
-    disk_result = function_executor.get_system_info(info_type="disk")
+    disk_result = await function_executor.get_system_info(info_type="disk")
     assert disk_result["status"] == "success"
     assert "disk" in disk_result["result"]
     assert "total" in disk_result["result"]["disk"]
     assert "used" in disk_result["result"]["disk"]
     
     # Test all info
-    all_result = function_executor.get_system_info(info_type="all")
+    all_result = await function_executor.get_system_info(info_type="all")
     assert all_result["status"] == "success"
     assert "cpu" in all_result["result"]
     assert "memory" in all_result["result"]
     assert "disk" in all_result["result"]
 
-def test_python_execution_error_handling(function_executor):
+@pytest.mark.asyncio
+async def test_python_execution_error_handling(function_executor):
     """Test error handling for Python script execution"""
     # Test nonexistent script
-    result = function_executor.execute_python(
+    result = await function_executor.execute_python(
         script_name="nonexistent.py",
         arguments=""
     )
@@ -73,7 +76,7 @@ def test_python_execution_error_handling(function_executor):
     with open("examples/invalid_script.py", "w") as f:
         f.write("this is not valid python")
     
-    result = function_executor.execute_python(
+    result = await function_executor.execute_python(
         script_name="invalid_script.py",
         arguments=""
     )
@@ -82,19 +85,21 @@ def test_python_execution_error_handling(function_executor):
     # Clean up
     os.remove("examples/invalid_script.py")
 
-def test_system_info_error_handling(function_executor):
+@pytest.mark.asyncio
+async def test_system_info_error_handling(function_executor):
     """Test error handling for system info retrieval"""
     # Test invalid info type
-    result = function_executor.get_system_info(info_type="invalid")
+    result = await function_executor.get_system_info(info_type="invalid")
     assert result["status"] == "error" or "error" in result
 
-def test_function_timeout(function_executor, sample_script_path):
+@pytest.mark.asyncio
+async def test_function_timeout(function_executor, sample_script_path):
     """Test function execution timeout"""
     # Create a script that sleeps
     with open("examples/slow_script.py", "w") as f:
         f.write("import time; time.sleep(10)")
     
-    result = function_executor.execute_python(
+    result = await function_executor.execute_python(
         script_name="slow_script.py",
         arguments="",
         timeout=1  # 1 second timeout
@@ -105,10 +110,11 @@ def test_function_timeout(function_executor, sample_script_path):
     # Clean up
     os.remove("examples/slow_script.py")
 
-def test_script_argument_handling(function_executor):
+@pytest.mark.asyncio
+async def test_script_argument_handling(function_executor):
     """Test handling of script arguments"""
     # Test with various argument types
-    result = function_executor.execute_python(
+    result = await function_executor.execute_python(
         script_name="sample_script.py",
         arguments='--flag1 value1 --flag2 "value with spaces"'
     )

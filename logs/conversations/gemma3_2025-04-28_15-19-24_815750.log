@@ -1,0 +1,7 @@
+2025-04-28 15:19:24.822 | INFO     | gemma3:<module>:135 - Loading model from gemma-3-4b-it-q4_0/gemma-3-4b-it-q4_0.gguf
+2025-04-28 15:19:25.315 | INFO     | gemma3:<module>:142 - Model loaded successfully
+2025-04-28 15:19:25.362 | INFO     | gemma3:create_chat_completion:169 - Starting conversation 20250428_151925
+2025-04-28 15:19:26.040 | INFO     | gemma3:create_chat_completion:169 - Starting conversation 20250428_151926
+2025-04-28 15:19:26.676 | INFO     | gemma3:create_chat_completion:169 - Starting conversation 20250428_151926
+2025-04-28 15:19:27.458 | ERROR    | gemma3:create_chat_completion:255 - Error in chat completion: 422: Messages array cannot be empty
+2025-04-28 15:19:27.461 | INFO     | gemma3:create_chat_completion:169 - Starting conversation 20250428_151927

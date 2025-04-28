@@ -2,6 +2,7 @@
 Tests for Gemma3 API endpoints.
 """
 import pytest
+import json
 from fastapi.testclient import TestClient
 from gemma3 import app
 
@@ -94,11 +95,12 @@ def test_streaming_response():
         # Process the SSE stream
         for line in response.iter_lines():
             if line:
-                # Remove 'data: ' prefix and parse JSON
-                if line.startswith(b'data: '):
-                    line = line[6:]  # Skip 'data: '
-                    if line != b'[DONE]':
-                        chunk = json.loads(line)
+                # Convert line to string if it's bytes
+                line_str = line.decode('utf-8') if isinstance(line, bytes) else line
+                if line_str.startswith('data: '):
+                    data = line_str[6:]  # Skip 'data: '
+                    if data != '[DONE]':
+                        chunk = json.loads(data)
                         assert "id" in chunk
                         assert "choices" in chunk
                         if chunk["choices"][0].get("delta", {}).get("content"):
