@@ -77,7 +77,7 @@ curl http://127.0.0.1:1337/v1/chat/completions \
   -d '{
     "model": "gemma-3-4b-it",
     "messages": [
-      {"role": "user", "content": "Run the sample script with argument test"}
+      {"role": "user", "content": "Run sample_script.py with argument test"}
     ],
     "functions": [
       {
