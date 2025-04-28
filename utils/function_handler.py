@@ -83,10 +83,8 @@ class FunctionExecutor:
         self, 
         script_name: str, 
         arguments: Optional[str] = None,
-        venv_path: Optional[str] = None,
-        timeout: Optional[int] = None
+        venv_path: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Execute a Python script with optional timeout"""
         try:
             script_path = self.scripts_dir / script_name
             if not script_path.exists():
@@ -107,7 +105,7 @@ class FunctionExecutor:
             if arguments:
                 cmd.extend(shlex.split(arguments))
                 
-            # Execute script with timeout if specified
+            # Execute script
             start_time = time.time()
             process = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -115,43 +113,19 @@ class FunctionExecutor:
                 stderr=asyncio.subprocess.PIPE
             )
             
-            try:
-                stdout, stderr = await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=timeout if timeout else 30
-                )
-                execution_time = time.time() - start_time
-
-                if process.returncode != 0 or stderr:
-                    return {
-                        "status": "error",
-                        "result": {
-                            "stdout": stdout.decode() if stdout else "",
-                            "stderr": stderr.decode() if stderr else "",
-                            "execution_time": execution_time,
-                            "return_code": process.returncode
-                        }
-                    }
-                
-                return {
-                    "status": "success",
-                    "result": {
-                        "stdout": stdout.decode() if stdout else "",
-                        "stderr": stderr.decode() if stderr else "",
-                        "execution_time": execution_time,
-                        "return_code": process.returncode
-                    }
+            stdout, stderr = await process.communicate()
+            execution_time = time.time() - start_time
+            
+            # Process results
+            return {
+                "status": "success",
+                "result": {
+                    "stdout": stdout.decode() if stdout else "",
+                    "stderr": stderr.decode() if stderr else "",
+                    "execution_time": execution_time,
+                    "return_code": process.returncode
                 }
-            except asyncio.TimeoutError:
-                try:
-                    process.terminate()
-                    await process.wait()
-                except:
-                    pass
-                return {
-                    "status": "error",
-                    "error": f"Script execution timed out after {timeout} seconds"
-                }
+            }
             
         except Exception as e:
             logger.error(f"Error executing script {script_name}: {e}")
@@ -193,7 +167,6 @@ class FunctionExecutor:
                     "result": {
                         "memory": {
                             "total": mem.total,
-                            "used": mem.total - mem.available,
                             "available": mem.available,
                             "percent": mem.percent
                         }
@@ -223,7 +196,6 @@ class FunctionExecutor:
                         "cpu": {"percent": cpu_percent},
                         "memory": {
                             "total": mem.total,
-                            "used": mem.total - mem.available,
                             "available": mem.available,
                             "percent": mem.percent
                         },

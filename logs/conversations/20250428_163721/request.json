@@ -1,0 +1,15 @@
+{
+  "model": "gemma-3-4b-it",
+  "messages": [
+    {
+      "role": "user",
+      "content": "### Task:\nGenerate a concise, 3-5 word title with an emoji summarizing the chat history.\n### Guidelines:\n- The title should clearly represent the main theme or subject of the conversation.\n- Use emojis that enhance understanding of the topic, but avoid quotation marks or special formatting.\n- Write the title in the chat's primary language; default to English if multilingual.\n- Prioritize accuracy over excessive creativity; keep it clear and simple.\n### Output:\nJSON format: { \"title\": \"your concise title here\" }\n### Examples:\n- { \"title\": \"\ud83d\udcc9 Stock Market Trends\" },\n- { \"title\": \"\ud83c\udf6a Perfect Chocolate Chip Recipe\" },\n- { \"title\": \"Evolution of Music Streaming\" },\n- { \"title\": \"Remote Work Productivity Tips\" },\n- { \"title\": \"Artificial Intelligence in Healthcare\" },\n- { \"title\": \"\ud83c\udfae Video Game Development Insights\" }\n### Chat History:\n<chat_history>\nUSER: Tell me about what you can do.\nASSISTANT: As a large language model, I can communicate in response to a wide range of prompts and questions. I can provide summaries of factual topics, create stories, and translate languages. I can also generate different creative text formats, like poems, code, scripts, musical pieces, email, letters, etc.\n</chat_history>",
+      "name": null,
+      "function_call": null
+    }
+  ],
+  "functions": null,
+  "temperature": 0.7,
+  "stream": false
+}
+---

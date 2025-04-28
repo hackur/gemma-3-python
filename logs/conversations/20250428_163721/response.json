@@ -1,0 +1,22 @@
+{
+  "id": "chatcmpl-20250428_163721",
+  "object": "chat.completion",
+  "created": 1745883444,
+  "model": "gemma-3-4b-it",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{ \"title\": \"\ud83e\udd16 Language Model Capabilities\" }"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 198,
+    "completion_tokens": 7,
+    "total_tokens": 205
+  }
+}
+---
