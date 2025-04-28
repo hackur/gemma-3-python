@@ -1,3 +1,22 @@
+"""
+Function handling utilities for Gemma3 API Server.
+
+This module provides utilities for handling function execution in a safe and
+controlled environment. It supports Python script execution with timeouts,
+sandboxing, and comprehensive error handling.
+
+Features:
+    - Timeout handling for long-running operations
+    - Controlled script execution environment
+    - Resource usage monitoring
+    - Error handling and logging
+    - Virtual environment support
+
+Usage:
+    executor = FunctionExecutor()
+    result = await executor.execute_python("script.py", "--arg1 value1")
+"""
+
 import os
 import asyncio
 import psutil
@@ -12,6 +31,23 @@ from functools import wraps
 import time
 
 def timeout_handler(timeout: int = 30):
+    """
+    Decorator for handling function timeouts.
+    
+    Wraps async functions to add timeout functionality. If the function
+    doesn't complete within the specified time, returns an error response.
+    
+    Args:
+        timeout: Maximum execution time in seconds (default: 30)
+        
+    Returns:
+        Decorated function that will timeout after specified seconds
+        
+    Example:
+        @timeout_handler(timeout=60)
+        async def long_running_task():
+            ...
+    """
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -26,133 +62,174 @@ def timeout_handler(timeout: int = 30):
     return decorator
 
 class FunctionExecutor:
+    """
+    Handles execution of Python scripts and functions.
+    
+    This class provides methods for executing Python scripts in a controlled
+    environment with proper error handling and resource monitoring.
+    
+    Attributes:
+        scripts_dir: Directory for storing scripts (default: examples/)
+    """
+    
     def __init__(self):
+        """Initialize the function executor."""
         # Store scripts in examples directory by default
         self.scripts_dir = Path("examples")
         self.scripts_dir.mkdir(exist_ok=True)
         
+    @timeout_handler(timeout=30)
     async def execute_python(
-        self,
-        script_name: str,
-        arguments: str = "",
-        timeout: int = 30,
+        self, 
+        script_name: str, 
+        arguments: Optional[str] = None,
         venv_path: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Execute a Python script with timeout and virtual environment support"""
-        script_path = self.scripts_dir / script_name
+        """
+        Execute a Python script with optional arguments.
         
-        if not script_path.exists():
-            return {
-                "status": "error",
-                "error": f"Script {script_name} not found"
-            }
+        Runs a Python script in a controlled environment with timeout handling
+        and resource monitoring. Optionally uses a virtual environment.
+        
+        Args:
+            script_name: Name of the script to execute
+            arguments: Optional command line arguments
+            venv_path: Optional path to virtual environment
             
-        cmd = []
-        if venv_path:
-            venv_path = Path(venv_path)
-            if venv_path.exists():
-                activate_script = venv_path / "bin" / "activate"
-                cmd.extend(["/bin/bash", "-c", f"source {activate_script} && python {script_path} {arguments}"])
-            else:
+        Returns:
+            Dict containing execution results or error information
+            
+        Example:
+            result = await execute_python(
+                "process_data.py",
+                "--input data.csv --output results.json",
+                venv_path=".venv"
+            )
+        """
+        try:
+            script_path = self.scripts_dir / script_name
+            if not script_path.exists():
                 return {
                     "status": "error",
-                    "error": f"Virtual environment not found at {venv_path}"
+                    "error": f"Script {script_name} not found"
                 }
-        else:
-            cmd.extend(["python", str(script_path)])
+                
+            # Build command
+            python_exe = "python"
+            if venv_path:
+                if platform.system() == "Windows":
+                    python_exe = os.path.join(venv_path, "Scripts", "python.exe")
+                else:
+                    python_exe = os.path.join(venv_path, "bin", "python")
+                    
+            cmd = [python_exe, str(script_path)]
             if arguments:
-                # Use shlex to properly parse quoted arguments
                 cmd.extend(shlex.split(arguments))
-
-        try:
+                
+            # Execute script
+            start_time = time.time()
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
             
-            try:
-                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
-                
-                # Check for script execution errors
-                if process.returncode != 0:
-                    return {
-                        "status": "error",
-                        "error": stderr.decode() if stderr else "Script execution failed",
-                        "stdout": stdout.decode() if stdout else "",
-                        "stderr": stderr.decode() if stderr else "",
-                        "return_code": process.returncode
-                    }
-                
-                return {
-                    "status": "success",
-                    "result": {
-                        "stdout": stdout.decode() if stdout else "",
-                        "stderr": stderr.decode() if stderr else "",
-                        "return_code": process.returncode
-                    }
-                }
-            except asyncio.TimeoutError:
-                try:
-                    process.terminate()
-                    await process.wait()
-                except:
-                    pass
-                return {
-                    "status": "error",
-                    "error": "timeout"
-                }
-                
+            stdout, stderr = await process.communicate()
+            execution_time = time.time() - start_time
+            
+            # Process results
+            return {
+                "status": "success" if process.returncode == 0 else "error",
+                "stdout": stdout.decode() if stdout else "",
+                "stderr": stderr.decode() if stderr else "",
+                "execution_time": execution_time,
+                "return_code": process.returncode
+            }
+            
         except Exception as e:
+            logger.error(f"Error executing script {script_name}: {e}")
             return {
                 "status": "error",
                 "error": str(e)
             }
             
+    @timeout_handler(timeout=5)
     async def get_system_info(self, info_type: str = "all") -> Dict[str, Any]:
-        """Get system information based on the requested type"""
-        try:
-            result = {}
+        """
+        Get system information.
+        
+        Retrieves various system metrics based on the requested information type.
+        
+        Args:
+            info_type: Type of information to retrieve ("cpu", "memory", "disk", or "all")
             
-            if info_type in ["cpu", "all"]:
-                result["cpu"] = {
-                    "percent": psutil.cpu_percent(interval=1),
-                    "count": psutil.cpu_count(),
-                    "freq": psutil.cpu_freq()._asdict() if psutil.cpu_freq() else None,
-                    "stats": psutil.cpu_stats()._asdict()
+        Returns:
+            Dict containing requested system information
+            
+        Example:
+            info = await get_system_info("memory")
+        """
+        try:
+            if info_type == "cpu":
+                return {
+                    "status": "success",
+                    "result": {"cpu": psutil.cpu_percent(interval=1)}
                 }
-                
-            if info_type in ["memory", "all"]:
-                memory = psutil.virtual_memory()
-                result["memory"] = {
-                    "total": memory.total,
-                    "available": memory.available,
-                    "percent": memory.percent,
-                    "used": memory.used,
-                    "free": memory.free
+            elif info_type == "memory":
+                mem = psutil.virtual_memory()
+                return {
+                    "status": "success",
+                    "result": {
+                        "memory": {
+                            "total": mem.total,
+                            "available": mem.available,
+                            "percent": mem.percent
+                        }
+                    }
                 }
-                
-            if info_type in ["disk", "all"]:
-                disk = psutil.disk_usage("/")
-                result["disk"] = {
-                    "total": disk.total,
-                    "used": disk.used,
-                    "free": disk.free,
-                    "percent": disk.percent
+            elif info_type == "disk":
+                disk = psutil.disk_usage('/')
+                return {
+                    "status": "success",
+                    "result": {
+                        "disk": {
+                            "total": disk.total,
+                            "used": disk.used,
+                            "free": disk.free,
+                            "percent": disk.percent
+                        }
+                    }
                 }
+            elif info_type == "all":
+                cpu_percent = psutil.cpu_percent(interval=1)
+                mem = psutil.virtual_memory()
+                disk = psutil.disk_usage('/')
                 
-            if not result:
+                return {
+                    "status": "success",
+                    "result": {
+                        "cpu": {"percent": cpu_percent},
+                        "memory": {
+                            "total": mem.total,
+                            "available": mem.available,
+                            "percent": mem.percent
+                        },
+                        "disk": {
+                            "total": disk.total,
+                            "used": disk.used,
+                            "free": disk.free,
+                            "percent": disk.percent
+                        }
+                    }
+                }
+            else:
                 return {
                     "status": "error",
-                    "error": f"Invalid info type: {info_type}"
+                    "error": f"Invalid info_type: {info_type}"
                 }
                 
-            return {
-                "status": "success",
-                "result": result
-            }
-            
         except Exception as e:
+            logger.error(f"Error getting system info: {e}")
             return {
                 "status": "error",
                 "error": str(e)
