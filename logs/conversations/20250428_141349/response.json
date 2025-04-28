@@ -1,0 +1,23 @@
+{
+  "id": "chatcmpl-1745874831",
+  "object": "chat.completion",
+  "created": 1745874831,
+  "model": "gemma-3-4b-it",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "```json\n{\n    \"name\": \"count\",\n    \"arguments\": {\n        \"start\": 1,\n        \"end\": 5\n    }\n}\n```",
+        "function_call": null
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 134,
+    "completion_tokens": 13,
+    "total_tokens": 147
+  }
+}
+---

@@ -1,0 +1,23 @@
+{
+  "id": "chatcmpl-1745874825",
+  "object": "chat.completion",
+  "created": 1745874825,
+  "model": "gemma-3-4b-it",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "```json\n{\n    \"name\": \"greeting_generator\",\n    \"arguments\": {\n        \"name\": \"Test\"\n    }\n}\n```",
+        "function_call": null
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 133,
+    "completion_tokens": 11,
+    "total_tokens": 144
+  }
+}
+---
