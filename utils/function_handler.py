@@ -117,6 +117,17 @@ class FunctionExecutor:
             execution_time = time.time() - start_time
             
             # Process results
+            if process.returncode != 0:
+                return {
+                    "status": "error",
+                    "error": stderr.decode() if stderr else "Script execution failed",
+                    "result": {
+                        "stdout": stdout.decode() if stdout else "",
+                        "stderr": stderr.decode() if stderr else "",
+                        "execution_time": execution_time,
+                        "return_code": process.returncode
+                    }
+                }
             return {
                 "status": "success",
                 "result": {
@@ -168,6 +179,7 @@ class FunctionExecutor:
                         "memory": {
                             "total": mem.total,
                             "available": mem.available,
+                            "used": mem.total - mem.available,
                             "percent": mem.percent
                         }
                     }
@@ -197,6 +209,7 @@ class FunctionExecutor:
                         "memory": {
                             "total": mem.total,
                             "available": mem.available,
+                            "used": mem.total - mem.available,
                             "percent": mem.percent
                         },
                         "disk": {
@@ -207,10 +220,9 @@ class FunctionExecutor:
                         }
                     }
                 }
-            else:
-                return {
-                    "status": "error",
-                    "error": f"Invalid info_type: {info_type}"
+            return {
+                "status": "error",
+                "error": f"Invalid info_type: {info_type}"
                 }
                 
         except Exception as e:
