@@ -38,7 +38,7 @@ from pathlib import Path
 from typing import List, Optional, Union, Dict, Any, AsyncGenerator
 
 # Third-party imports
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -259,7 +259,7 @@ async def list_models() -> Dict[str, List[Dict[str, Any]]]:
 async def create_chat_completion(
     request: ChatCompletionRequest,
     background_tasks: BackgroundTasks
-) -> Union[StreamingResponse, Dict[str, Any]]:
+) -> Response:
     """
     Creates a chat completion for the given messages.
     
@@ -271,11 +271,7 @@ async def create_chat_completion(
         background_tasks: FastAPI background tasks for async operations
         
     Returns:
-        Either a StreamingResponse for stream=True or a Dict containing the 
-        complete response for stream=False
-        
-    Raises:
-        HTTPException: If the request is invalid or processing fails
+        FastAPI Response object (either StreamingResponse or JSONResponse)
     """
     try:
         # Validate messages array

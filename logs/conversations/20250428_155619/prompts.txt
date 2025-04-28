@@ -1,0 +1,8 @@
+=== 2025-04-28T15:56:19.808893 ===
+Human: Write a test greeting
+Assistant:
+---
+=== 2025-04-28T15:56:20.380206 ===
+Human: What is the current CPU usage?
+Assistant:
+---

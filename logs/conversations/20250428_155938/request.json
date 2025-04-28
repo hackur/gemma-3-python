@@ -1,0 +1,52 @@
+{
+  "model": "gemma-3-4b-it",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Write a test greeting",
+      "name": null,
+      "function_call": null
+    }
+  ],
+  "functions": null,
+  "temperature": 0.7,
+  "stream": false
+}
+---
+{
+  "model": "gemma-3-4b-it",
+  "messages": [
+    {
+      "role": "user",
+      "content": "What is the current CPU usage?",
+      "name": null,
+      "function_call": null
+    }
+  ],
+  "functions": [
+    {
+      "name": "get_system_info",
+      "description": "Get system information",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "info_type": {
+            "type": "string",
+            "enum": [
+              "cpu",
+              "memory",
+              "disk",
+              "all"
+            ]
+          }
+        },
+        "required": [
+          "info_type"
+        ]
+      }
+    }
+  ],
+  "temperature": 0.7,
+  "stream": false
+}
+---

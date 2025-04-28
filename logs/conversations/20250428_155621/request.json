@@ -1,0 +1,27 @@
+{
+  "model": "gemma-3-4b-it",
+  "messages": [
+    {
+      "role": "user",
+      "content": "My name is Bob",
+      "name": null,
+      "function_call": null
+    },
+    {
+      "role": "assistant",
+      "content": "Hello Bob!",
+      "name": null,
+      "function_call": null
+    },
+    {
+      "role": "user",
+      "content": "What's my name?",
+      "name": null,
+      "function_call": null
+    }
+  ],
+  "functions": null,
+  "temperature": 0.1,
+  "stream": false
+}
+---
