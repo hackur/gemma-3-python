@@ -19,6 +19,11 @@ def function_executor():
 PROJECT_ROOT = Path(__file__).parent.parent
 EXAMPLES_DIR = PROJECT_ROOT / "examples"
 
+@pytest.fixture
+def sample_script_path():
+    """Fixture that provides path to sample script"""
+    return EXAMPLES_DIR / "sample_script.py"
+
 @pytest.mark.asyncio
 async def test_execute_python(function_executor, sample_script_path):
     """Test Python script execution"""
@@ -86,7 +91,7 @@ async def test_python_execution_error_handling(function_executor, tmp_path):
             arguments=""
         )
         assert result["status"] == "error"
-        assert "FileNotFoundError" in result.get("error", "") # Be more specific about the expected error
+        assert result.get("error") == "Script nonexistent_script.py not found"
 
         # Test script with invalid syntax
         invalid_script = tmp_path / "invalid_syntax.py"
@@ -94,11 +99,11 @@ async def test_python_execution_error_handling(function_executor, tmp_path):
             f.write("this is not valid python")
 
         result = await function_executor.execute_python(
-            script_name=str(invalid_script), # Pass the full path from tmp_path
+            script_name=str(invalid_script),
             arguments=""
         )
         assert result["status"] == "error"
-        assert "SyntaxError" in result.get("error", "") # Expecting a syntax error
+        assert "invalid syntax" in result.get("error", "").lower()
     except Exception as e:
         print(f"Error in test_python_execution_error_handling: {e}")
         raise e
