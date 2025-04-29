@@ -35,6 +35,48 @@ This guide provides information for developers contributing to the Gemma3 API Se
 - Write tests for all new functionality
 - Maintain test coverage above 80%
 - Use pytest fixtures for common test setups
+
+To run the tests, you need Python 3.9 or higher and the following dependencies:
+
+To manage the virtual environment and install dependencies, it is recommended to use `uv`:
+
+```bash
+uv venv .venv
+source .venv/bin/activate
+uv pip install pytest pytest-asyncio pytest-cov
+```
+
+Example commands for running tests:
+
+```bash
+# Run test suite
+pytest tests/
+
+# Run benchmarks
+python -m benchmarks.benchmark_runner
+
+# Run specific test file
+pytest tests/test_api.py
+```
+
+To run the tests, you need Python 3.9 or higher and the following dependencies:
+
+```bash
+pip install pytest pytest-asyncio pytest-cov
+```
+
+Example commands for running tests:
+
+```bash
+# Run test suite
+pytest tests/
+
+# Run benchmarks
+python -m benchmarks.benchmark_runner
+
+# Run specific test file
+pytest tests/test_api.py
+```
 - Mock external dependencies appropriately
 - Test both success and error cases
 

@@ -17,12 +17,13 @@ dependencies = [
     "pytest>=8.3.5",
     "pytest-cov>=6.1.1",
 ]
+requires-python = ">=3.9"
 
 [project.optional-dependencies]
 test = [
-    "pytest>=7.4.0",
-    "pytest-cov>=4.1.0",
-    "pytest-asyncio>=0.21.0"
+    "pytest>=8.3.5",
+    "pytest-cov>=6.1.1",
+    "pytest-asyncio>=0.26.0"
 ]
 
 [build-system]
@@ -33,6 +34,8 @@ build-backend = "hatchling.build"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-v --cov=gemma3"
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
 
 [project.scripts]
 gemma3 = "gemma3:main"
