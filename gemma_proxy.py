@@ -368,6 +368,55 @@ class ChatCompletionHandler:
                 detail="Error communicating with LM Studio"
             )
 
+# Add this before the chat completion endpoint
+async def _fetch_models():
+    """Internal helper to fetch models with retries"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{LM_STUDIO_URL}/models",
+                headers={"Authorization": f"Bearer {API_KEY}"},
+                timeout=30.0
+            )
+            if response.status_code == 404:
+                # Models endpoint not supported, return default model list≠≠≠≠
+                return {
+                    "data": [
+                        {
+                            "id": "gemma-3-4b-it",
+                            "object": "model",
+                            "created": int(time.time()),
+                            "owned_by": "local"
+                        }
+                    ]
+                }
+            response.raise_for_status()
+            return response.json()
+    except Exception as e:
+        logger.warning(f"Error fetching models, using fallback: {str(e)}")
+        return {
+            "data": [
+                {
+                    "id": "gemma-3-4b-it",
+                    "object": "model",
+                    "created": int(time.time()),
+                    "owned_by": "local"
+                }
+            ]
+        }
+
+# Update the models endpoint to use the helper
+@app.get("/v1/models")
+async def list_models():
+    """List available models endpoint that proxies to LM Studio"""
+    return await _fetch_models()
+
+# Add legacy models endpoint support
+@app.get("/v/models")
+async def legacy_list_models():
+    """Legacy models endpoint that redirects to v1/models"""
+    return await list_models()
+
 # Update the FastAPI endpoint to use the new handler
 handler = ChatCompletionHandler(LM_STUDIO_URL, API_KEY)
 
@@ -378,4 +427,5 @@ async def chat_completion(request: ChatRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=1338)
+    uvicorn.run(app, host="0.0.0.0", port=1338) # , reload=True)
+    # uvicorn.run(app, host="0.0.0.0", port=1338)
