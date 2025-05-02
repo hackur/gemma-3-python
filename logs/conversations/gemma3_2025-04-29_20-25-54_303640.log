@@ -1,0 +1,4 @@
+2025-04-29 20:25:54.307 | INFO     | __main__:<module>:214 - Loading model from gemma-3-4b-it-q4_0/gemma-3-4b-it-q4_0.gguf
+2025-04-29 20:25:55.879 | INFO     | __main__:<module>:221 - Model loaded successfully
+2025-04-29 20:25:55.894 | INFO     | __main__:<module>:432 - Starting Gemma3 API Server...
+2025-04-29 23:10:30.647 | INFO     | __main__:create_chat_completion:283 - Starting conversation 20250429_231030

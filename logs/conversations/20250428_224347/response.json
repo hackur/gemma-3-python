@@ -1,0 +1,22 @@
+{
+  "id": "chatcmpl-20250428_224347",
+  "object": "chat.completion",
+  "created": 1745905430,
+  "model": "gemma-3-4b-it",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{ \"queries\": [\"Qwen3 GitHub\", \"Qwen3 repository\"] }\n```"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 309,
+    "completion_tokens": 8,
+    "total_tokens": 317
+  }
+}
+---
