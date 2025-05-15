@@ -211,6 +211,24 @@ Supported options:
 - **label_color**: red, green, blue, yellow, white, black
 - **box_type**: rectangle, circle
 
+### 4. extract_graded_card
+
+Extracts a Pokemon card and grade label from a graded card case (PSA, BGS, CGC, etc.).
+
+```bash
+curl http://localhost:1338/v1/tools/extract_graded_card \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image_url": "https://example.com/graded_pokemon_card.jpg"
+  }'
+```
+
+This tool performs the following operations:
+1. Detects if a Pokemon card is in a professional grading case
+2. Extracts just the card itself by cropping away the plastic case
+3. Separately extracts the grade label showing the numerical grade
+4. Identifies the grading company (PSA, BGS, CGC) when possible
+
 ## Pokemon Card Analysis Examples
 
 The following examples demonstrate how to use the Pokemon card analysis tools in practice. The examples use the test scripts included in the repository.
@@ -378,6 +396,55 @@ async def complete_pokemon_card_analysis(image_path):
         results["annotated_image"] = annotated_image_uri
     
     return results
+```
+
+### Graded Card Processing
+
+The following example demonstrates how to process graded Pokemon cards to extract the card from its case and the grade label for analysis:
+
+```python
+async def process_graded_card(image_path):
+    """Extract a card and grade label from a graded Pokemon card case"""
+    image_data_uri = image_to_data_uri(image_path)
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:1338/v1/tools/extract_graded_card",
+            json={
+                "image_url": image_data_uri
+            }
+        )
+        
+        result = json.loads(response.text)
+        
+        if result["is_graded_card"]:
+            print(f"Detected graded card from {result['grade_type']}")
+            
+            # Save the extracted card
+            card_path = f"output/extracted_card.png"
+            save_data_uri_to_file(result["card_image"], card_path)
+            
+            # Save the extracted grade label
+            if result["grade_label_image"]:
+                label_path = f"output/grade_label.png"
+                save_data_uri_to_file(result["grade_label_image"], label_path)
+                
+                # In a production application, you could now run OCR on the grade label
+                # to extract the numerical grade
+        else:
+            print("This doesn't appear to be a graded card")
+```
+
+Running the test script creates output in the following format:
+
+```
+output/
+├── GRADED_CARDS--2025-05-15-12-12-55/
+│   ├── pokemon-card_visualization.png    # Visualization of detection results
+│   ├── pokemon-card_card.png             # Extracted card without case
+│   ├── pokemon-card_grade_label.png      # Extracted grade label
+│   ├── summary.json                      # Metadata about processed images
+│   └── test_script.py                    # Copy of the test script used
 ```
 
 ### Output Organization
