@@ -1,4 +1,0 @@
-=== 2025-04-28T17:24:29.290648 ===
-Human: Write a test greeting
-Assistant:
----

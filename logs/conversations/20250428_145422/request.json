@@ -1,8 +1,0 @@
-{
-  "model": "gemma-3-4b-it",
-  "messages": [],
-  "functions": null,
-  "temperature": 0.7,
-  "stream": false
-}
----

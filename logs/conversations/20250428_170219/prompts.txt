@@ -1,6 +1,0 @@
-=== 2025-04-28T17:02:19.916796 ===
-Human: My name is Bob
-Assistant: Hello Bob!
-Human: What's my name?
-Assistant:
----
