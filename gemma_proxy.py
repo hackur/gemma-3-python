@@ -136,7 +136,7 @@ tool_parser = ToolParser(tool_registry)
 # Register example tools
 tool_registry.register_tool(
     name="analyze_image",
-    description="Analyze an image and return information about its contents",
+    description="Analyze an image and return information about its contents using vision analysis",
     parameters={
         "type": "object",
         "properties": {
@@ -156,8 +156,29 @@ tool_registry.register_tool(
             },
             "temperature": {
                 "type": "number",
-                "description": "Temperature for generation (lower = more consistent)",
-                "default": 0.2,
+                "description": "Temperature for generation (Gemma 3 recommended: 1.0)",
+                "default": 1.0,
+                "minimum": 0.0,
+                "maximum": 2.0
+            },
+            "top_k": {
+                "type": "integer",
+                "description": "Limits token consideration to top K most likely tokens (Gemma 3 recommended: 64)",
+                "default": 64,
+                "minimum": 1,
+                "maximum": 100
+            },
+            "top_p": {
+                "type": "number",
+                "description": "Nucleus sampling probability threshold (Gemma 3 recommended: 0.95)",
+                "default": 0.95,
+                "minimum": 0.0,
+                "maximum": 1.0
+            },
+            "min_p": {
+                "type": "number",
+                "description": "Minimum probability threshold for tokens (Gemma 3 recommended: 0.0)",
+                "default": 0.0,
                 "minimum": 0.0,
                 "maximum": 1.0
             },

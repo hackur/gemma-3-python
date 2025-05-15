@@ -38,14 +38,14 @@ def image_to_data_uri(image_path):
     
     return f"data:{mime_type};base64,{base64_data}"
 
-async def analyze_pokemon_card(image_path):
+async def analyze_pokemon_card(image_path, is_front=True):
     """Analyze the Pokemon card image with consistent results"""
-    print(f"Analyzing image: {image_path}")
+    print(f"Analyzing image: {image_path} ({'front' if is_front else 'back'} of card)")
     
     # Convert image to data URI
     image_data_uri = image_to_data_uri(image_path)
     
-    # Call the analyze_image tool with low temperature and specific seed
+    # Call the analyze_image tool with Gemma 3 recommended settings
     async with httpx.AsyncClient() as client:
         response = await client.post(
             f"{SERVER_URL}/v1/tools/analyze_image",
@@ -53,14 +53,19 @@ async def analyze_pokemon_card(image_path):
                 "image_url": image_data_uri,
                 "analyze_objects": True,
                 "analyze_text": True,
-                "temperature": 0.1,  # Very low temperature for consistency
-                "seed": 42  # Specific seed for reproducibility
+                "temperature": 1.0,  # Gemma 3 recommended setting
+                "top_k": 64,       # Gemma 3 recommended setting
+                "top_p": 0.95,     # Gemma 3 recommended setting
+                "min_p": 0.0,      # Gemma 3 recommended setting
+                "seed": 42         # For reproducibility
             }
         )
         
         if response.status_code == 200:
             # Parse the response
             result = response.text
+            analysis_results = None
+            
             try:
                 # The response might be a JSON string
                 if result.startswith('"'):
@@ -69,66 +74,93 @@ async def analyze_pokemon_card(image_path):
                 # Try to parse as JSON if it's still a string
                 if isinstance(result, str):
                     try:
-                        analysis = json.loads(result)
-                        print("\nAnalysis Results:")
-                        print(json.dumps(analysis, indent=2))
-                        # Use the parsed JSON for further processing
-                        result = analysis
+                        analysis_results = json.loads(result)
                     except:
                         print("\nAnalysis Results (raw):")
                         print(result)
+                        return False, False
                 else:
-                    print("\nAnalysis Results:")
-                    print(json.dumps(result, indent=2))
+                    analysis_results = result
                 
-                # Generate a human-readable description
+                # Print the raw analysis results
+                print("\nAnalysis Results:")
+                print(json.dumps(analysis_results, indent=2))
+                
+                # Format the results for easier reading
                 print("\n=== Pokemon Card Analysis ===")
-                print("Here's what I can tell you about this Pokemon card:")
                 
-                if isinstance(result, dict):
-                    print(f"Description: {result.get('description', 'Unknown')}")
-                    print(f"Tags: {', '.join(result.get('tags', []))}")
-                    print(f"Colors: {', '.join(result.get('colors', []))}")
-                    
-                    # Print objects detected
-                    objects = result.get('objects', [])
-                    if objects:
-                        print("\nObjects detected:")
-                        for obj in objects:
-                            print(f"- {obj.get('name', 'Unknown')} (confidence: {obj.get('confidence', 0):.2f})")
-                    
-                    # Print text detected
-                    text_items = result.get('text', [])
-                    if text_items:
-                        print("\nText detected:")
-                        for text_item in text_items:
-                            print(f"- {text_item.get('text', 'Unknown')} (confidence: {text_item.get('confidence', 0):.2f})")
-                    
-                    # Print metadata
-                    metadata = result.get('metadata', {})
-                    if metadata:
-                        print("\nImage metadata:")
-                        print(f"- Dimensions: {metadata.get('width', 'Unknown')}x{metadata.get('height', 'Unknown')}")
-                        print(f"- Format: {metadata.get('format', 'Unknown')}")
-                        print(f"- Aspect ratio: {metadata.get('aspect_ratio', 'Unknown')}")
+                # Card detection results
+                is_pokemon_card = analysis_results.get('metadata', {}).get('is_pokemon_card', False)
+                is_card_back = analysis_results.get('metadata', {}).get('is_card_back', False)
+                pokemon_visible = analysis_results.get('metadata', {}).get('pokemon_character_visible', False)
                 
-                print("\nThis analysis was generated with:")
-                print(f"- Temperature: {result.get('metadata', {}).get('temperature', 0.1)}")
-                print(f"- Seed: {result.get('metadata', {}).get('seed', 42)}")
-                print(f"- Analysis time: {result.get('analysis_time', 'Unknown')}")
+                if is_pokemon_card:
+                    if is_card_back:
+                        print("✅ DETECTED: This is the BACK of a Pokemon card")
+                    else:
+                        print("✅ DETECTED: This is the FRONT of a Pokemon card")
+                        if pokemon_visible:
+                            print("✅ Pokemon character is visible on the card")
+                        else:
+                            print("⚠️ No Pokemon character detected on the card")
+                else:
+                    print("❌ This does not appear to be a Pokemon card")
+                
+                print(f"\nDescription: {analysis_results.get('description', 'Unknown')}")
+                print(f"Tags: {', '.join(analysis_results.get('tags', []))}")
+                print(f"Colors: {', '.join(analysis_results.get('colors', []))}")
+                
+                print("\nObjects detected:")
+                for obj in analysis_results.get('objects', []):
+                    print(f"- {obj.get('name', 'Unknown')} (confidence: {obj.get('confidence', 0):.2f})")
+                
+                if analysis_results.get('text', []):
+                    print("\nText detected:")
+                    for text in analysis_results.get('text', []):
+                        print(f"- {text.get('content', 'Unknown')} (confidence: {text.get('confidence', 0):.2f})")
+                
+                metadata = analysis_results.get('metadata', {})
+                print("\nImage metadata:")
+                print(f"- Dimensions: {metadata.get('width', 'Unknown')}x{metadata.get('height', 'Unknown')}")
+                print(f"- Format: {metadata.get('format', 'Unknown')}")
+                print(f"- Aspect ratio: {metadata.get('aspect_ratio', 'Unknown')}")
+                print(f"- Average brightness: {metadata.get('average_brightness', 'Unknown')}")
+                
+                print("\nThis analysis was generated with Gemma 3 configuration:")
+                config = metadata.get('model_config', {})
+                print(f"- Temperature: {config.get('temperature', 1.0)}")
+                print(f"- Top-k: {config.get('top_k', 64)}")
+                print(f"- Top-p: {config.get('top_p', 0.95)}")
+                print(f"- Min-p: {config.get('min_p', 0.0)}")
+                print(f"- Seed: {config.get('seed', 42)}")
+                print(f"- Analysis time: {analysis_results.get('analysis_time', 'Unknown')}")
+                
+                return is_pokemon_card, is_card_back
+                
             except Exception as e:
                 print(f"Error parsing result: {str(e)}")
                 print("Raw result:", result)
+                return False, False
         else:
             print(f"Error: {response.status_code} - {response.text}")
+            return False, False
 
 async def main():
-    """Main function"""
-    if not IMAGE_PATH.exists():
-        print(f"Error: Image file not found: {IMAGE_PATH}")
+    """Main function to test both front and back of Pokemon card"""
+    # Use the actual Pokemon card image
+    pokemon_card = Path("docs/pokemon-card.webp")
+    
+    if not pokemon_card.exists():
+        print(f"Error: Pokemon card image not found at {pokemon_card}")
         return
     
-    await analyze_pokemon_card(IMAGE_PATH)
+    print(f"Using real Pokemon card image: {pokemon_card}")
+    
+    # Analyze the Pokemon card
+    print("\n=== ANALYZING POKEMON CARD ===\n")
+    await analyze_pokemon_card(pokemon_card, is_front=True)
+    
+    # No additional analysis needed
 
 if __name__ == "__main__":
     asyncio.run(main())
