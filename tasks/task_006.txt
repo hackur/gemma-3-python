@@ -1,0 +1,15 @@
+# Task ID: 6
+# Title: Integrate Tool Calling with Gemma Proxy
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Integrate the tool calling framework with the existing Gemma 3 proxy server.
+# Details:
+1. Modify the chat completion endpoint to support tool calling
+2. Update request/response models to include tool definitions and results
+3. Implement the flow to detect and execute tool calls during model generation
+4. Add support for feeding tool results back to the model
+5. Update API documentation to reflect new capabilities
+
+# Test Strategy:
+

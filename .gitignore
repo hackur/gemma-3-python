@@ -27,6 +27,6 @@ node_modules/
 *.sw?
 # OS specific
 .DS_Store
-# Task files
-tasks.json
-tasks/ 
+# Task files (commented out to allow taskmaster to work)
+# tasks.json
+# tasks/
