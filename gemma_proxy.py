@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ValidationError, field_validator
 import requests
-from typing import List, Dict, Optional, Union, Any
+from typing import List, Dict, Optional, Union, Any, Callable
 import mimetypes
 import re
 
@@ -20,6 +20,18 @@ import json
 from logging.handlers import RotatingFileHandler
 import platform
 import psutil
+
+# Import our tool framework components
+from tool_framework import (
+    ToolRegistry, ToolRequest, ToolResponse as ToolFrameworkResponse, 
+    ToolResponseStatus, ToolError, ToolCategory, generate_tool_id
+)
+from tool_parser import ToolParser, ToolParseResult
+from tool_executor import ToolExecutor
+from example_tools import (
+    analyze_image, apply_image_filter, resize_image, 
+    fetch_url_content, get_current_time
+)
 
 # Configure detailed logging with rotation and structured format
 LOG_FILE = 'gemma_proxy.log'
@@ -112,6 +124,159 @@ app.add_middleware(
 RATE_LIMIT = 60
 rate_limit_store: Dict[str, List[float]] = {}
 validation_errors: Dict[str, List[Dict[str, Any]]] = {}
+
+# Initialize tool framework components
+tool_registry = ToolRegistry()
+tool_parser = ToolParser(tool_registry)
+tool_executor = ToolExecutor(tool_registry)
+
+# Register example tools
+tool_registry.register_tool(
+    name="analyze_image",
+    description="Analyze an image and return information about its contents",
+    parameters={
+        "type": "object",
+        "properties": {
+            "image_url": {
+                "type": "string",
+                "description": "URL or base64 data URI of the image to analyze"
+            },
+            "analyze_objects": {
+                "type": "boolean",
+                "description": "Whether to analyze objects in the image",
+                "default": True
+            },
+            "analyze_text": {
+                "type": "boolean",
+                "description": "Whether to analyze text in the image",
+                "default": False
+            }
+        },
+        "required": ["image_url"]
+    },
+    handler_fn=analyze_image,
+    is_async=True,
+    category=ToolCategory.IMAGE
+)
+
+tool_registry.register_tool(
+    name="apply_image_filter",
+    description="Apply a filter to an image and return the processed image",
+    parameters={
+        "type": "object",
+        "properties": {
+            "image_url": {
+                "type": "string",
+                "description": "URL or base64 data URI of the image to process"
+            },
+            "filter_type": {
+                "type": "string",
+                "description": "Type of filter to apply (blur, sharpen, grayscale, edge_enhance, brighten)",
+                "enum": ["blur", "sharpen", "grayscale", "edge_enhance", "brighten"],
+                "default": "blur"
+            },
+            "intensity": {
+                "type": "number",
+                "description": "Intensity of the filter effect (0.0 to 2.0)",
+                "minimum": 0.0,
+                "maximum": 2.0,
+                "default": 1.0
+            }
+        },
+        "required": ["image_url"]
+    },
+    handler_fn=apply_image_filter,
+    category=ToolCategory.IMAGE
+)
+
+tool_registry.register_tool(
+    name="resize_image",
+    description="Resize an image to the specified dimensions",
+    parameters={
+        "type": "object",
+        "properties": {
+            "image_url": {
+                "type": "string",
+                "description": "URL or base64 data URI of the image to resize"
+            },
+            "width": {
+                "type": "integer",
+                "description": "Target width in pixels",
+                "minimum": 1
+            },
+            "height": {
+                "type": "integer",
+                "description": "Target height in pixels",
+                "minimum": 1
+            },
+            "maintain_aspect_ratio": {
+                "type": "boolean",
+                "description": "Whether to maintain the aspect ratio",
+                "default": True
+            }
+        },
+        "required": ["image_url"]
+    },
+    handler_fn=resize_image,
+    category=ToolCategory.IMAGE
+)
+
+tool_registry.register_tool(
+    name="fetch_url_content",
+    description="Fetch content from a URL",
+    parameters={
+        "type": "object",
+        "properties": {
+            "url": {
+                "type": "string",
+                "description": "URL to fetch"
+            }
+        },
+        "required": ["url"]
+    },
+    handler_fn=fetch_url_content,
+    is_async=True,
+    category=ToolCategory.WEB
+)
+
+tool_registry.register_tool(
+    name="get_current_time",
+    description="Get the current date and time in different formats",
+    parameters={
+        "type": "object",
+        "properties": {}
+    },
+    handler_fn=get_current_time,
+    category=ToolCategory.UTILITY
+)
+
+# Also register the existing read_file tool
+tool_registry.register_tool(
+    name="read_file",
+    description="Read the contents of a file",
+    parameters={
+        "type": "object",
+        "properties": {
+            "path": {
+                "type": "string",
+                "description": "Path to the file to read"
+            },
+            "startLineNumberBaseZero": {
+                "type": "integer",
+                "description": "Starting line number (0-indexed)",
+                "minimum": 0
+            },
+            "endLineNumberBaseZero": {
+                "type": "integer",
+                "description": "Ending line number (0-indexed)",
+                "minimum": 0
+            }
+        },
+        "required": ["path"]
+    },
+    handler_fn=lambda args: SafePath.get_safe_content(args["path"]),
+    category=ToolCategory.FILE
+)
 
 class ValidationMonitor:
     """Monitors and analyzes validation errors"""
@@ -452,25 +617,80 @@ def execute_safe_tool(tool_call: ToolCallEnhanced) -> ToolResponse:
     )
 
 async def process_tool_calls(messages: List[Dict]) -> List[Dict]:
-    """Process and execute valid tool calls with enhanced validation"""
+    """Process and execute tool calls using our tool framework"""
     last_message = messages[-1]
     
     if "tool_calls" in last_message:
+        # Extract tool calls from the message
+        tool_calls = last_message.get("tool_calls", [])
+        if not tool_calls:
+            return messages
+            
+        logger.info(f"Processing {len(tool_calls)} tool calls")
+        
+        # Initialize tool responses list
         tool_responses = []
-        for tool_call in last_message["tool_calls"]:
+        
+        # Convert to tool requests
+        tool_requests = []
+        for tool_call in tool_calls:
             try:
-                validated_call = ToolCallEnhanced(**tool_call)
-                response = execute_safe_tool(validated_call)
-                tool_responses.append(response.dict())
-            except ValidationError as e:
-                logger.error(f"Invalid tool call: {str(e)}")
+                # Extract tool name and arguments
+                name = tool_call.get("function", {}).get("name")
+                arguments_str = tool_call.get("function", {}).get("arguments", "{}")
+                
+                # Parse arguments
+                try:
+                    if isinstance(arguments_str, str):
+                        arguments = json.loads(arguments_str)
+                    else:
+                        arguments = arguments_str
+                except json.JSONDecodeError:
+                    logger.error(f"Invalid JSON in tool arguments: {arguments_str}")
+                    arguments = {}
+                
+                # Create tool request
+                tool_requests.append(ToolRequest(
+                    name=name,
+                    arguments=arguments,
+                    tool_call_id=tool_call.get("id", generate_tool_id())
+                ))
+            except Exception as e:
+                logger.error(f"Error creating tool request: {str(e)}")
+                # Add error response
                 tool_responses.append({
                     "role": "tool",
-                    "content": f"Error: Invalid tool call - {str(e)}",
-                    "tool_call_id": tool_call.get("id", ""),
-                    "metadata": {"error": "validation_error"}
+                    "content": f"Error: Failed to parse tool call - {str(e)}",
+                    "tool_call_id": tool_call.get("id", generate_tool_id()),
+                    "metadata": {"error": "parsing_error"}
                 })
+        
+        # Execute tool requests
+        tool_responses = []
+        if tool_requests:
+            try:
+                # Execute all tool requests in parallel
+                responses = await tool_executor.execute_tools(tool_requests)
                 
+                # Convert responses to the expected format
+                for response in responses:
+                    tool_responses.append({
+                        "role": "tool",
+                        "content": response.content,
+                        "tool_call_id": response.tool_call_id,
+                        "metadata": response.metadata
+                    })
+            except Exception as e:
+                logger.error(f"Error executing tools: {str(e)}")
+                # Add generic error response if execution fails
+                tool_responses.append({
+                    "role": "tool",
+                    "content": f"Error executing tools: {str(e)}",
+                    "tool_call_id": "error",
+                    "metadata": {"error": "execution_error"}
+                })
+        
+        # Add tool responses to messages
         return messages + tool_responses
     
     return messages
@@ -676,7 +896,7 @@ class ChatCompletionHandler:
 
 # Add this before the chat completion endpoint
 async def _fetch_models():
-    """Internal helper to fetch models with retries"""
+    """Internal helper to fetch models with retries and add tool capabilities"""
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(
@@ -685,8 +905,8 @@ async def _fetch_models():
                 timeout=30.0
             )
             if response.status_code == 404:
-                # Models endpoint not supported, return default model list≠≠≠≠
-                return {
+                # Models endpoint not supported, return default model list
+                models_data = {
                     "data": [
                         {
                             "id": "gemma-3-4b-it",
@@ -696,19 +916,38 @@ async def _fetch_models():
                         }
                     ]
                 }
-            response.raise_for_status()
-            return response.json()
+            else:
+                models_data = response.json()
+                
+            # Add tool capabilities to all models
+            tools_schema = tool_registry.get_openai_schema()
+            
+            for model in models_data.get("data", []):
+                # Add tool calling capability
+                if "capabilities" not in model:
+                    model["capabilities"] = {}
+                model["capabilities"]["tool_calling"] = True
+                
+                # Add available tools
+                if "tools" not in model:
+                    model["tools"] = tools_schema
+            
+            return models_data
     except Exception as e:
         logger.warning(f"Error fetching models, using fallback: {str(e)}")
+        
+        # Create fallback model with tool capabilities
+        model_data = {
+            "id": "gemma-3-4b-it",
+            "object": "model",
+            "created": int(time.time()),
+            "owned_by": "local",
+            "capabilities": {"tool_calling": True},
+            "tools": tool_registry.get_openai_schema()
+        }
+        
         return {
-            "data": [
-                {
-                    "id": "gemma-3-4b-it",
-                    "object": "model",
-                    "created": int(time.time()),
-                    "owned_by": "local"
-                }
-            ]
+            "data": [model_data]
         }
 
 # Health and monitoring endpoints
@@ -736,6 +975,35 @@ async def health_check():
                 "limit": RATE_LIMIT
             }
         }
+    }
+
+@app.get("/v1/tools")
+async def list_tools():
+    """List all available tools and their schemas"""
+    # Get OpenAI-compatible tool schema
+    openai_schema = tool_registry.get_openai_schema()
+    
+    # Get all tools directly
+    all_tools = []
+    for name in tool_registry.tools:
+        tool_info = tool_registry.get_tool(name)
+        if tool_info:
+            tool_def = tool_info["definition"]
+            all_tools.append({
+                "name": tool_def.name,
+                "description": tool_def.description,
+                "parameters": tool_def.parameters,
+                "category": str(tool_def.category),
+                "is_async": tool_def.is_async,
+                "version": tool_def.version
+            })
+    
+    return {
+        "tools": all_tools,
+        "count": len(all_tools),
+        "openai_schema": openai_schema,
+        "categories": [category.value for category in ToolCategory],
+        "timestamp": datetime.utcnow().isoformat()
     }
 
 # Monitoring endpoints

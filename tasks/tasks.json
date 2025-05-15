@@ -53,7 +53,7 @@
     {
       "id": "6",
       "title": "Integrate Tool Calling with Gemma Proxy",
-      "status": "pending",
+      "status": "done",
       "dependencies": [],
       "priority": "high",
       "description": "Integrate the tool calling framework with the existing Gemma 3 proxy server.",

@@ -27,6 +27,7 @@ dependencies = [
     "referencing==0.36.2",
     "rpds-py==0.25.0",
     "pydantic-core==2.33.2",
+    "pillow>=11.2.1",
 ]
 requires-python = ">=3.9"
 
