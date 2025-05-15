@@ -382,51 +382,6 @@ async def create_chat_completion(
             raise
         raise HTTPException(status_code=500, detail=str(e))
 
-async def _stream_response(request: ChatCompletionRequest) -> AsyncGenerator[str, None]:
-    """
-    Stream chat completion responses with improved progress tracking.
-    
-    Args:
-        request: The chat completion request
-        
-    Yields:
-        JSON strings containing response chunks and progress information
-    """
-    start_time = time.perf_counter()
-    tokens_generated = 0
-    last_progress_update = 0
-    
-    async for chunk in model.stream_completion(request.messages):
-        current_time = time.perf_counter()
-        tokens_generated += 1
-        
-        # Update progress every second or every 20 tokens, whichever comes first
-        if (current_time - last_progress_update >= 1.0 or 
-            tokens_generated % 20 == 0):
-            
-            progress_info = {
-                "elapsed_time": current_time - start_time,
-                "tokens_generated": tokens_generated,
-                "tokens_per_second": tokens_generated / (current_time - start_time)
-            }
-            chunk["progress"] = progress_info
-            last_progress_update = current_time
-            
-        yield json.dumps(chunk) + "\n"
-        
-        # Check for iteration termination conditions
-        if chunk.get("finish_reason") or tokens_generated >= request.max_tokens:
-            break
-            
-    # Send final statistics
-    yield json.dumps({
-        "final_stats": {
-            "total_tokens": tokens_generated,
-            "total_time": time.perf_counter() - start_time,
-            "avg_tokens_per_second": tokens_generated / (time.perf_counter() - start_time)
-        }
-    }) + "\n"
-
 if __name__ == "__main__":
     import uvicorn
     logger.info("Starting Gemma3 API Server...")

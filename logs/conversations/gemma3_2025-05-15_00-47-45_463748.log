@@ -1,0 +1,2 @@
+2025-05-15 00:47:45.468 | INFO     | gemma3:<module>:214 - Loading model from gemma-3-4b-it-q4_0/gemma-3-4b-it-q4_0.gguf
+2025-05-15 00:47:45.930 | INFO     | gemma3:<module>:221 - Model loaded successfully

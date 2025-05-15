@@ -1,0 +1,3 @@
+2025-05-15 00:35:45.953 | INFO     | __main__:<module>:214 - Loading model from gemma-3-4b-it-q4_0/gemma-3-4b-it-q4_0.gguf
+2025-05-15 00:35:46.430 | INFO     | __main__:<module>:221 - Model loaded successfully
+2025-05-15 00:35:46.478 | INFO     | __main__:<module>:432 - Starting Gemma3 API Server...
