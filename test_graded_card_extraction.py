@@ -4,18 +4,26 @@ Test script for extracting Pokemon cards from grading cases.
 
 This script demonstrates the use of the extract_graded_card tool which:
 1. Detects if a Pokemon card is in a professional grading case (PSA, BGS, CGC, etc.)
-2. Extracts just the card itself by cropping away the plastic case
+2. Extracts just the card itself by cropping away the plastic case while preserving original image dimensions
 3. Separately extracts the grade label showing the numerical grade
 """
 
 import os
+import sys
 import json
 import base64
-import httpx
 import asyncio
 import logging
-from pathlib import Path
+import argparse
+from io import BytesIO
 from datetime import datetime
+from pathlib import Path
+
+import httpx
+from PIL import Image
+
+# Import our utilities
+from pokemon_card_utils import load_image, image_to_data_uri
 
 # Configure logging for better debugging and tracking
 logging.basicConfig(level=logging.INFO, 
@@ -71,33 +79,7 @@ def create_output_dir():
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
 
-def image_to_data_uri(image_path):
-    """
-    Convert an image file to a data URI format.
-    
-    Args:
-        image_path: Path to the image file to convert
-        
-    Returns:
-        str: A data URI string in the format 'data:[MIME type];base64,[encoded data]'
-    """
-    with open(image_path, "rb") as f:
-        image_data = f.read()
-    
-    # Get the MIME type based on file extension
-    if str(image_path).lower().endswith('.png'):
-        mime_type = "image/png"
-    elif str(image_path).lower().endswith('.jpg') or str(image_path).lower().endswith('.jpeg'):
-        mime_type = "image/jpeg"
-    elif str(image_path).lower().endswith('.webp'):
-        mime_type = "image/webp"
-    else:
-        mime_type = "image/png"  # Default to PNG if extension is unknown
-    
-    # Encode the binary image data as base64
-    base64_data = base64.b64encode(image_data).decode("utf-8")
-    
-    return f"data:{mime_type};base64,{base64_data}"
+# We now import image_to_data_uri from pokemon_card_utils.py
 
 def save_data_uri_to_file(data_uri, output_path):
     """
@@ -136,7 +118,13 @@ async def extract_graded_card(image_path, output_dir):
     logger.info(f"Processing graded card: {image_path}")
     
     # Convert the image file to a data URI format for the API request
+    # We now use the imported utility function
     image_data_uri = image_to_data_uri(image_path)
+    
+    # Store original image dimensions
+    original_image = Image.open(image_path)
+    original_width, original_height = original_image.size
+    logger.info(f"Original image dimensions: {original_width}x{original_height}")
     
     # Call the extract_graded_card tool API endpoint
     async with httpx.AsyncClient() as client:
@@ -154,50 +142,68 @@ async def extract_graded_card(image_path, output_dir):
                 response_text = response.text
                 logger.info(f"Raw API Response: {response_text[:200]}...")
                 
-                # Since we're getting a quoted string JSON response that needs special handling,
-                # let's save the raw response directly to demonstrate the concept
-                # In a production environment, we would parse this properly
+                # Parse the JSON response
+                # Handle the case where the response might be a JSON string rather than object
+                if response_text.startswith('"'):
+                    # This is a JSON string that needs to be unescaped
+                    response_text = json.loads(response_text)
                 
-                # Create a basic output directory structure to demonstrate the concept
+                result = json.loads(response_text) if isinstance(response_text, str) else response_text
+                
+                # Create output structure
                 base_filename = Path(image_path).stem
                 outputs = {}
                 
-                # Save the original image as a "visualization"
-                viz_path = output_dir / f"{base_filename}_visualization.png"
-                with open(image_path, 'rb') as src_file:
-                    with open(viz_path, 'wb') as out_file:
-                        out_file.write(src_file.read())
-                logger.info(f"Saved visualization of input to: {viz_path}")
-                outputs["visualization_path"] = str(viz_path)
+                # Save the visualization image if available
+                if "visualization" in result:
+                    viz_path = output_dir / f"{base_filename}_visualization.png"
+                    if save_data_uri_to_file(result["visualization"], viz_path):
+                        logger.info(f"Saved visualization of input to: {viz_path}")
+                        outputs["visualization_path"] = str(viz_path)
+                else:
+                    # If no visualization returned, use the original image
+                    viz_path = output_dir / f"{base_filename}_visualization.png"
+                    original_image.save(viz_path)
+                    logger.info(f"Saved original as visualization to: {viz_path}")
+                    outputs["visualization_path"] = str(viz_path)
                 
-                # Save a copy as the "extracted card" - in a real demo with graded cards
-                # this would be the card extracted from the grading case
-                card_path = output_dir / f"{base_filename}_card.png"
-                with open(image_path, 'rb') as src_file:
-                    with open(card_path, 'wb') as out_file:
-                        out_file.write(src_file.read())
-                logger.info(f"Saved extracted card image to: {card_path}")
-                outputs["card_path"] = str(card_path)
+                # Save the extracted card image if available
+                if "card_image" in result:
+                    card_path = output_dir / f"{base_filename}_card.png"
+                    if save_data_uri_to_file(result["card_image"], card_path):
+                        logger.info(f"Saved extracted card image to: {card_path}")
+                        outputs["card_path"] = str(card_path)
+                else:
+                    # If no card image returned, use the original image
+                    card_path = output_dir / f"{base_filename}_card.png"
+                    original_image.save(card_path)
+                    logger.info(f"Saved original as card image to: {card_path}")
+                    outputs["card_path"] = str(card_path)
                 
-                # For demonstration purposes, create a very small cropped section of the top
-                # of the image to simulate the "grade label"
-                from PIL import Image
-                try:
-                    img = Image.open(image_path)
-                    width, height = img.size
-                    # Take a small section from the top of the image
-                    label_section = img.crop((width // 3, 0, 2 * width // 3, height // 10))
+                # Save the grade label image if available
+                if "grade_label_image" in result:
                     label_path = output_dir / f"{base_filename}_grade_label.png"
-                    label_section.save(label_path)
-                    logger.info(f"Saved simulated grade label to: {label_path}")
-                    outputs["label_path"] = str(label_path)
-                except Exception as e:
-                    logger.error(f"Error creating simulated grade label: {str(e)}")
+                    if save_data_uri_to_file(result["grade_label_image"], label_path):
+                        logger.info(f"Saved grade label image to: {label_path}")
+                        outputs["label_path"] = str(label_path)
+                else:
+                    # Create a simulated "grade label" by cropping a small part of the original
+                    # This preserves the original resolution in this section
+                    try:
+                        # Take a small section from the top of the image
+                        label_section = original_image.crop((original_width // 3, 0, 2 * original_width // 3, original_height // 10))
+                        label_path = output_dir / f"{base_filename}_grade_label.png"
+                        label_section.save(label_path)
+                        logger.info(f"Saved simulated grade label to: {label_path}")
+                        outputs["label_path"] = str(label_path)
+                    except Exception as e:
+                        logger.error(f"Error creating simulated grade label: {str(e)}")
                 
-                # Add metadata
-                outputs["is_graded_card"] = "PSA" in base_filename.upper() or "BGS" in base_filename.upper()
-                outputs["grade_type"] = "PSA" if "PSA" in base_filename.upper() else "Unknown"
-                outputs["grade_value"] = None  # In a real implementation, this would be extracted via OCR
+                # Add metadata from the result
+                outputs["is_graded_card"] = result.get("is_graded_card", False)
+                outputs["grade_type"] = result.get("grade_type", "Unknown")
+                outputs["grade_value"] = result.get("grade_value")
+                outputs["original_dimensions"] = f"{original_width}x{original_height}"
                 
                 return outputs
                 

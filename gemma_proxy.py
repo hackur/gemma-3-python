@@ -30,12 +30,16 @@ from tool_executor import ToolExecutor
 from tool_parser import ToolParser
 
 # Import example tools
-import example_tools
+# Import Pokemon card modules
+from pokemon_card_analyzer import analyze_pokemon_card
+from pokemon_card_annotator import annotate_pokemon_card
+from pokemon_card_extractor import extract_graded_card
+
+# Import other tools from example_tools
 from example_tools import (
     analyze_image, apply_image_filter, resize_image, smart_crop_image,
-    fetch_url_content, get_current_time, extract_graded_card
+    fetch_url_content, get_current_time
 )
-from annotate_pokemon_card import annotate_pokemon_card
 
 # Configure detailed logging with rotation and structured format
 LOG_FILE = 'gemma_proxy.log'
