@@ -1,4 +1,0 @@
-=== 2025-04-28T15:19:26.673333 ===
-Human: What is the current CPU usage?
-Assistant:
----

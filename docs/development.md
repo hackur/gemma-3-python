@@ -32,11 +32,64 @@ This guide provides information for developers contributing to the Gemma3 API Se
 
 ### Testing
 
+#### Test Requirements
+
+- Python 3.9 or higher
+- pytest 8.3.5 or higher
+- pytest-asyncio 0.26.0 or higher (for async tests)
+- pytest-cov 6.1.1 or higher (for coverage reports)
+
+#### Test Guidelines
+
 - Write tests for all new functionality
 - Maintain test coverage above 80%
 - Use pytest fixtures for common test setups
 - Mock external dependencies appropriately
 - Test both success and error cases
+- Ensure proper error message handling
+- Add logging for better test debugging
+
+#### Test Configuration
+
+The project uses strict asyncio mode and function-scoped event loops. This is configured in `pyproject.toml`:
+
+```toml
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --cov=gemma3"
+```
+
+#### Running Tests
+
+To manage the virtual environment and install dependencies, it is recommended to use `uv`:
+
+```bash
+uv venv .venv
+source .venv/bin/activate
+uv pip install pytest pytest-asyncio pytest-cov
+```
+
+Example commands for running tests:
+
+```bash
+# Run all tests with coverage report
+pytest tests/
+
+# Run specific test file
+pytest tests/test_api.py
+
+# Run tests with detailed output
+pytest -v tests/
+
+# Run tests and generate coverage report
+pytest --cov=gemma3 tests/
+
+# Run benchmarks
+python -m benchmarks.benchmark_runner
+```
 
 ### Documentation
 

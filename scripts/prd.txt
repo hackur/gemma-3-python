@@ -1,0 +1,64 @@
+# Product Requirements Document: Gemma 3 Tool Calling Image Recognition Service
+
+## Overview
+This project aims to enhance the existing Gemma 3 proxy server to support tool calling capabilities with a focus on image recognition. The service will build on the current OpenAI-compatible API server that already exposes Gemma 3 models, adding functionality to process images, manage memory, and handle tool calls similar to OpenAI's function calling feature.
+
+## Current System
+- Existing Gemma 3 proxy server (gemma_proxy.py) that provides an OpenAI-compatible API
+- Support for running Gemma 3 models (gemma-3-4b-it)
+- Basic chat completion functionality
+- Server runs on uvicorn with customizable host and port
+
+## Requirements
+
+### 1. Tool Calling Framework
+- Implement a tool calling framework similar to OpenAI's function calling
+- Support for defining, registering, and executing tools
+- Ability to parse and validate tool call requests from the model
+- Support for returning tool call results back to the model
+
+### 2. Image Recognition Capabilities
+- Add support for processing and analyzing images
+- Implement image recognition tools that can be called by the model
+- Support common image operations: object detection, classification, OCR, etc.
+- Handle various image formats and sizes
+
+### 3. Memory Management
+- Implement short-term conversation memory
+- Support for long-term memory storage and retrieval
+- Memory chunking and efficient storage mechanisms
+- Context window management for optimal model performance
+
+### 4. Response Management
+- Support for chunking/splitting long responses
+- Streaming capabilities for real-time responses
+- Proper error handling and recovery mechanisms
+
+### 5. API Enhancements
+- Extend the OpenAI-compatible API to support tool calling
+- Maintain backward compatibility with existing chat completion endpoints
+- Add new endpoints for tool registration and management
+- Comprehensive documentation for API usage
+
+### 6. Performance Optimization
+- Optimize image processing for speed and efficiency
+- Implement caching mechanisms for frequently used tools and images
+- Ensure minimal latency for tool execution
+
+### 7. Testing and Validation
+- Comprehensive test suite for all new functionality
+- Integration tests for the entire system
+- Performance benchmarks for various operations
+
+## Technical Constraints
+- Use UV for Python environment management
+- Build on top of the existing gemma_proxy.py implementation
+- Maintain compatibility with the current API structure
+- Ensure the system can run with reasonable performance on standard hardware
+
+## Success Criteria
+- Successfully process and analyze images through tool calls
+- Maintain response quality comparable to direct model calls
+- Handle complex multi-turn conversations with tool usage
+- Achieve reasonable performance metrics for image processing operations
+- Provide comprehensive documentation and examples

@@ -1,0 +1,15 @@
+# Task ID: 7
+# Title: Implement Basic Image Processing Tools
+# Status: pending
+# Dependencies: None
+# Priority: medium
+# Description: Implement basic image processing tools that can be called by the model.
+# Details:
+1. Create tools for loading and parsing images from URLs or base64
+2. Implement image resizing and formatting tools
+3. Add basic image analysis tools (dimensions, format, size)
+4. Implement image conversion between formats
+5. Add tools for extracting metadata from images
+
+# Test Strategy:
+

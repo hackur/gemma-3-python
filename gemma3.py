@@ -1,16 +1,51 @@
+"""
+Gemma3 OpenAI-compatible API Server.
+
+This module implements an OpenAI-compatible API server for the Gemma 3 language model.
+It provides endpoints for model inference, chat completions, and function calling capabilities.
+
+The server implements the following key features:
+- OpenAI-compatible REST API endpoints
+- Streaming and non-streaming responses
+- Function calling support
+- System resource monitoring
+- Error handling and validation
+- Comprehensive logging system
+
+Classes:
+    ConversationLogger: Handles logging of chat conversations
+    FunctionParameter: Defines function parameter schema
+    FunctionDefinition: Defines function calling interface
+    ChatMessage: Represents a single chat message
+    ChatCompletionRequest: Defines chat completion request schema
+    ChatCompletionResponse: Defines chat completion response schema
+
+Authors:
+    AI Developer
+Version:
+    0.1.0
+Date:
+    April 2025
+"""
+
+# Standard library imports
 import os
 import asyncio
-from typing import List, Optional, Union, Dict, Any
-from fastapi import FastAPI, HTTPException
+import json
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import List, Optional, Union, Dict, Any, AsyncGenerator
+
+# Third-party imports
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from llama_cpp import Llama
 from loguru import logger
-import json
-import time
-from datetime import datetime
-from pathlib import Path
+
+# Local imports
 from utils.function_handler import FunctionExecutor
 
 # Configure logging
@@ -44,11 +79,31 @@ DEFAULT_CONTEXT_SIZE = 8192
 DEFAULT_THREADS = 4
 
 class ConversationLogger:
+    """
+    Handles logging of chat conversations and interactions.
+    
+    This class manages the logging of chat conversations, including requests,
+    responses, and prompts. Each conversation is stored in a separate directory
+    with a unique identifier.
+    
+    Attributes:
+        base_dir (Path): Base directory for storing conversation logs
+        
+    Methods:
+        create_conversation(): Creates a new conversation and returns its ID
+        log_interaction(): Logs a single conversation interaction
+    """
+    
     def __init__(self, base_dir: Path = LOGS_DIR):
         self.base_dir = base_dir
         
     def create_conversation(self) -> str:
-        """Create a new conversation directory and return its ID"""
+        """
+        Creates a new conversation with a unique identifier.
+        
+        Returns:
+            str: Unique conversation identifier
+        """
         conv_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         conv_dir = self.base_dir / conv_id
         conv_dir.mkdir(exist_ok=True)
@@ -60,8 +115,16 @@ class ConversationLogger:
         request: Dict[str, Any],
         response: Dict[str, Any],
         prompt: str = None
-    ):
-        """Log an interaction in the conversation"""
+    ) -> None:
+        """
+        Logs a single conversation interaction.
+        
+        Args:
+            conv_id: Unique conversation identifier
+            request: The chat completion request
+            response: The model's response
+            prompt: Optional raw prompt sent to the model
+        """
         conv_dir = self.base_dir / conv_id
         
         # Log request
@@ -108,6 +171,16 @@ class ChatMessage(BaseModel):
     function_call: Optional[Dict[str, Any]] = None
 
 class ChatCompletionRequest(BaseModel):
+    """
+    Request model for chat completion API endpoint.
+    
+    Attributes:
+        model (str): Model identifier (e.g., "gemma-3-4b-it")
+        messages (List[Dict]): List of conversation messages
+        temperature (float, optional): Sampling temperature
+        functions (List[Dict], optional): Available functions for function calling
+        stream (bool, optional): Whether to stream the response
+    """
     model: str
     messages: List[ChatMessage]
     functions: Optional[List[FunctionDefinition]] = None
@@ -123,7 +196,13 @@ class ChatCompletionResponse(BaseModel):
     usage: Dict[str, int]
 
 # Load system prompt
-def load_system_prompt():
+def load_system_prompt() -> str:
+    """
+    Load system prompt from file or return default.
+    
+    Returns:
+        str: System prompt text
+    """
     if os.path.exists(SYSTEM_PROMPT_PATH):
         with open(SYSTEM_PROMPT_PATH, "r") as f:
             return f.read().strip()
@@ -145,7 +224,26 @@ except Exception as e:
     raise
 
 @app.get("/v1/models")
-async def list_models():
+async def list_models() -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Lists available models and their basic information.
+    
+    Returns:
+        Dict containing list of available models with their configurations
+        
+    Example:
+        >>> await list_models()
+        {
+            "data": [
+                {
+                    "id": "gemma-3-4b-it",
+                    "object": "model",
+                    "created": 1234567890,
+                    "owned_by": "google"
+                }
+            ]
+        }
+    """
     return {
         "data": [
             {
@@ -158,7 +256,23 @@ async def list_models():
     }
 
 @app.post("/v1/chat/completions")
-async def create_chat_completion(request: ChatCompletionRequest):
+async def create_chat_completion(
+    request: ChatCompletionRequest,
+    background_tasks: BackgroundTasks
+) -> Response:
+    """
+    Creates a chat completion for the given messages.
+    
+    This endpoint handles both streaming and non-streaming chat completions.
+    It supports function calling and maintains conversation context.
+    
+    Args:
+        request: The chat completion request containing messages and parameters
+        background_tasks: FastAPI background tasks for async operations
+        
+    Returns:
+        FastAPI Response object (either StreamingResponse or JSONResponse)
+    """
     try:
         # Validate messages array
         if not request.messages:

@@ -1,0 +1,17 @@
+# Task ID: 2
+# Title: Design Tool Calling Framework
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Design a tool calling framework that integrates with the existing Gemma 3 proxy server.
+# Details:
+1. Define the tool calling interface similar to OpenAI's function calling
+2. Design the tool registration mechanism
+3. Create a schema for tool definitions
+4. Design the tool execution flow
+5. Plan how tool results will be fed back to the model
+6. Design error handling for tool execution
+7. Consider security implications and constraints
+
+# Test Strategy:
+
