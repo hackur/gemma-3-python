@@ -211,6 +211,196 @@ Supported options:
 - **label_color**: red, green, blue, yellow, white, black
 - **box_type**: rectangle, circle
 
+## Pokemon Card Analysis Examples
+
+The following examples demonstrate how to use the Pokemon card analysis tools in practice. The examples use the test scripts included in the repository.
+
+### Complete Card Analysis Workflow
+
+This example shows a complete workflow for analyzing Pokemon cards:
+
+1. **Run the test script**:
+
+```bash
+source .venv/bin/activate
+python test_annotate_pokemon.py
+```
+
+2. **Results Overview**:
+
+The script processes both front and back Pokemon card images and generates annotated versions with different styles. Results are saved to a timestamped directory (e.g., `output/ANNOTATED_CARDS--2025-05-15-11-51-37/`).
+
+### Example Front Card Analysis
+
+#### Original Card (Front)
+
+```
+docs/pokenmon-card-front.webp
+```
+
+#### Annotated Card with Rectangle Boxes
+
+<img src="output/ANNOTATED_CARDS--2025-05-15-11-51-37/pokenmon-card-front_annotated_red_rectangle.png" alt="Front Card with Red Rectangle Annotations" width="400"/>
+
+```python
+# Python code example for front card annotation
+async def annotate_front_card():
+    image_path = "docs/pokenmon-card-front.webp"
+    image_data_uri = image_to_data_uri(image_path)
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:1338/v1/tools/annotate_pokemon_card",
+            json={
+                "image_url": image_data_uri,
+                "label_color": "red",
+                "box_type": "rectangle"
+            }
+        )
+        
+        # The response contains the annotated image as a data URI
+        annotated_image_uri = response.text.strip('"')
+        
+        # Save or display the annotated image
+        output_path = "output/annotated_front_card.png"
+        save_data_uri_to_file(annotated_image_uri, output_path)
+```
+
+#### Front Card with Circle Annotations
+
+<img src="output/ANNOTATED_CARDS--2025-05-15-11-51-37/pokenmon-card-front_annotated_blue_circle.png" alt="Front Card with Blue Circle Annotations" width="400"/>
+
+### Example Back Card Analysis
+
+#### Original Card (Back)
+
+```
+docs/pokenmon-card-back.webp.webp
+```
+
+#### Annotated Card with Rectangle Boxes
+
+<img src="output/ANNOTATED_CARDS--2025-05-15-11-51-37/pokenmon-card-back.webp_annotated_green_rectangle.png" alt="Back Card with Green Rectangle Annotations" width="400"/>
+
+```python
+# Python code example for back card annotation
+async def annotate_back_card():
+    image_path = "docs/pokenmon-card-back.webp.webp"
+    image_data_uri = image_to_data_uri(image_path)
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:1338/v1/tools/annotate_pokemon_card",
+            json={
+                "image_url": image_data_uri,
+                "label_color": "green",
+                "box_type": "rectangle"
+            }
+        )
+        
+        # Process response...
+```
+
+### Smart Cropping Example
+
+```python
+# Python code example for smart cropping
+async def smart_crop_pokemon_card():
+    image_path = "docs/pokenmon-card-front.webp"
+    image_data_uri = image_to_data_uri(image_path)
+    
+    # Crop to focus on just the Pokemon image in the center
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:1338/v1/tools/smart_crop_image",
+            json={
+                "image_url": image_data_uri,
+                "target_width": 300,
+                "target_height": 300,
+                "focus_area": "center"
+            }
+        )
+        
+        # The response contains the cropped image as a data URI
+        cropped_image_uri = response.text.strip('"')
+        
+        # Save or display the cropped image
+        output_path = "output/cropped_pokemon.png"
+        save_data_uri_to_file(cropped_image_uri, output_path)
+```
+
+### Integration Example
+
+This example shows how to combine analysis, cropping, and annotation in a single workflow:
+
+```python
+async def complete_pokemon_card_analysis(image_path):
+    """Perform complete analysis of a Pokemon card"""
+    image_data_uri = image_to_data_uri(image_path)
+    results = {}
+    
+    # Step 1: Analyze the image
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:1338/v1/tools/analyze_image",
+            json={
+                "image_url": image_data_uri,
+                "analyze_objects": True
+            }
+        )
+        results["analysis"] = response.json()
+    
+    # Step 2: Smart crop the image
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:1338/v1/tools/smart_crop_image",
+            json={
+                "image_url": image_data_uri,
+                "target_width": 400,
+                "target_height": 400,
+                "focus_area": "center"
+            }
+        )
+        cropped_image_uri = response.text.strip('"')
+        results["cropped_image"] = cropped_image_uri
+    
+    # Step 3: Annotate the card
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:1338/v1/tools/annotate_pokemon_card",
+            json={
+                "image_url": image_data_uri,
+                "label_color": "red",
+                "box_type": "rectangle"
+            }
+        )
+        annotated_image_uri = response.text.strip('"')
+        results["annotated_image"] = annotated_image_uri
+    
+    return results
+```
+
+### Output Organization
+
+The test scripts organize outputs into timestamped directories for easy reference:
+
+```
+output/
+├── ANNOTATED_CARDS--2025-05-15-11-51-37/
+│   ├── pokenmon-card-front_annotated_red_rectangle.png
+│   ├── pokenmon-card-front_annotated_green_rectangle.png
+│   ├── pokenmon-card-front_annotated_blue_circle.png
+│   ├── pokenmon-card-front_annotated_yellow_circle.png
+│   ├── pokenmon-card-back.webp_annotated_red_rectangle.png
+│   ├── pokenmon-card-back.webp_annotated_green_rectangle.png
+│   ├── pokenmon-card-back.webp_annotated_blue_circle.png
+│   ├── pokenmon-card-back.webp_annotated_yellow_circle.png
+│   ├── summary.json
+│   └── test_script.py
+```
+
+Each run also creates a `summary.json` file with metadata about all processed images.
+
 ## Benchmarking
 
 Run the benchmark suite:

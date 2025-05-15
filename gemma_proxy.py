@@ -33,7 +33,7 @@ from tool_parser import ToolParser
 import example_tools
 from example_tools import (
     analyze_image, apply_image_filter, resize_image, smart_crop_image,
-    fetch_url_content, get_current_time
+    fetch_url_content, get_current_time, extract_graded_card
 )
 from annotate_pokemon_card import annotate_pokemon_card
 
@@ -316,6 +316,23 @@ tool_registry.register_tool(
         "required": ["image_url"]
     },
     handler_fn=annotate_pokemon_card,
+    category=ToolCategory.IMAGE
+)
+
+tool_registry.register_tool(
+    name="extract_graded_card",
+    description="Extract a Pokemon card and grade label from a graded card case (PSA, BGS, etc.)",
+    parameters={
+        "type": "object",
+        "properties": {
+            "image_url": {
+                "type": "string",
+                "description": "URL or base64 data URI of the graded Pokemon card image"
+            }
+        },
+        "required": ["image_url"]
+    },
+    handler_fn=extract_graded_card,
     category=ToolCategory.IMAGE
 )
 

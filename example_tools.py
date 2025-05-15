@@ -512,6 +512,166 @@ async def smart_crop_image(
     
     return f"data:image/png;base64,{base64_image}"
 
+async def extract_graded_card(image_url: str) -> Dict[str, str]:
+    """
+    Extract a Pokemon card and grade label from a graded card case (PSA, BGS, etc.).
+    
+    This tool detects if a Pokemon card is in a professional grading case, and if so:
+    1. Extracts just the card itself by cropping away the plastic case
+    2. Separately extracts the grade label showing the numerical grade
+    
+    Args:
+        image_url: URL or base64 data URI of the graded card image
+        
+    Returns:
+        Dictionary containing base64-encoded data URIs for 'card_image' and 'grade_label_image',
+        plus metadata about the detected grade if identifiable
+    """
+    # Load the image
+    image = _load_image(image_url)
+    
+    # Get original dimensions
+    width, height = image.size
+    
+    # First, detect if this is likely a graded card by checking for characteristics
+    # of graded card cases (clear plastic borders, straight edges, grade label)
+    
+    # Convert to grayscale for edge detection
+    gray_image = image.convert('L')
+    
+    # Check for straight edges and rectangular shape typical of grading cases
+    # This is a simple heuristic; in production we would use more advanced CV
+    is_graded_card = False
+    grade_type = "unknown"  # PSA, BGS, CGC, etc.
+    grade_value = None
+    
+    # Simple detection: Look for bright white border around the card
+    # which is typical of grading cases due to the clear plastic
+    pixels = list(gray_image.getdata())
+    bright_border_pixels = sum(1 for p in pixels[0:width*20] if p > 200)  # Top border
+    bright_border_pixels += sum(1 for p in pixels[-width*20:] if p > 200)  # Bottom border
+    
+    # Check left and right borders
+    left_border = [pixels[i*width] for i in range(height)]
+    right_border = [pixels[i*width + width-1] for i in range(height)]
+    bright_border_pixels += sum(1 for p in left_border if p > 200)
+    bright_border_pixels += sum(1 for p in right_border if p > 200)
+    
+    # If we have a significant number of bright pixels on the border, it's likely a graded card
+    border_threshold = (width*40 + height*2) * 0.7
+    is_graded_card = bright_border_pixels > border_threshold
+    
+    # If it doesn't seem to be a graded card, return early with the original image
+    if not is_graded_card:
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        original_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        return {
+            "is_graded_card": False,
+            "card_image": f"data:image/png;base64,{original_base64}", 
+            "grade_label_image": None,
+            "grade_type": None,
+            "grade_value": None
+        }
+    
+    # Try to identify the grading company
+    # This uses basic color detection for different grading companies
+    # PSA typically has red label, BGS has black/silver, CGC has blue, etc.
+    red_pixels = 0
+    blue_pixels = 0
+    black_pixels = 0
+    
+    # Sample the top border area where grade labels typically are
+    top_region = image.crop((width//4, 0, 3*width//4, height//8))
+    top_pixels = list(top_region.getdata())
+    
+    for r, g, b in top_pixels:
+        if r > 200 and g < 100 and b < 100:  # Red (PSA)
+            red_pixels += 1
+        elif r < 100 and g < 100 and b > 200:  # Blue (CGC)
+            blue_pixels += 1
+        elif r < 60 and g < 60 and b < 60:  # Black (BGS)
+            black_pixels += 1
+    
+    # Determine grade type based on dominant color
+    if red_pixels > len(top_pixels) * 0.1:
+        grade_type = "PSA"
+    elif blue_pixels > len(top_pixels) * 0.1:
+        grade_type = "CGC"
+    elif black_pixels > len(top_pixels) * 0.1:
+        grade_type = "BGS"
+    
+    # Extract the card from within the case
+    # In a real implementation, this would use edge detection or ML-based object detection
+    # Here we use a simple estimation based on typical grading case proportions
+    
+    # For most graded cards, the actual card is inset from the edges
+    inset_ratio_h = 0.08  # Horizontal inset as percentage of width
+    inset_ratio_v = 0.12  # Vertical inset as percentage of height
+    top_inset_extra = 0.08  # Extra space at top for the label
+    
+    card_x1 = int(width * inset_ratio_h)
+    card_y1 = int(height * (inset_ratio_v + top_inset_extra))
+    card_x2 = int(width * (1 - inset_ratio_h))
+    card_y2 = int(height * (1 - inset_ratio_v))
+    
+    # Extract the card
+    card_image = image.crop((card_x1, card_y1, card_x2, card_y2))
+    
+    # Extract the grade label from the top of the case
+    label_x1 = int(width * 0.3)  # Grade label is typically centered
+    label_y1 = int(height * 0.03)  # Near the top
+    label_x2 = int(width * 0.7)
+    label_y2 = int(height * (inset_ratio_v + top_inset_extra - 0.02))
+    
+    grade_label_image = image.crop((label_x1, label_y1, label_x2, label_y2))
+    
+    # Try to determine the numerical grade from the label
+    # This would require OCR in a real implementation
+    # For this example, we'll just use a placeholder
+    grade_value = None  # Would be extracted via OCR
+    
+    # Convert images to base64
+    card_buffer = BytesIO()
+    card_image.save(card_buffer, format="PNG")
+    card_base64 = base64.b64encode(card_buffer.getvalue()).decode("utf-8")
+    
+    label_buffer = BytesIO()
+    grade_label_image.save(label_buffer, format="PNG")
+    label_base64 = base64.b64encode(label_buffer.getvalue()).decode("utf-8")
+    
+    # Create a visualization showing both extracted regions
+    viz_image = image.copy()
+    draw = ImageDraw.Draw(viz_image)
+    
+    # Draw rectangles around the extracted regions
+    draw.rectangle([card_x1, card_y1, card_x2, card_y2], outline=(0, 255, 0), width=5)
+    draw.rectangle([label_x1, label_y1, label_x2, label_y2], outline=(255, 0, 0), width=5)
+    
+    # Add labels
+    try:
+        font_size = max(12, min(width, height) // 40)
+        font = ImageFont.truetype("Arial", font_size)
+    except IOError:
+        font = ImageFont.load_default()
+        
+    draw.text((card_x1 + 10, card_y1 - font_size - 5), "Card", fill=(0, 255, 0), font=font)
+    draw.text((label_x1 + 10, label_y1 - font_size - 5), "Grade Label", fill=(255, 0, 0), font=font)
+    
+    # Convert visualization to base64
+    viz_buffer = BytesIO()
+    viz_image.save(viz_buffer, format="PNG")
+    viz_base64 = base64.b64encode(viz_buffer.getvalue()).decode("utf-8")
+    
+    return {
+        "is_graded_card": True,
+        "card_image": f"data:image/png;base64,{card_base64}", 
+        "grade_label_image": f"data:image/png;base64,{label_base64}",
+        "visualization": f"data:image/png;base64,{viz_base64}",
+        "grade_type": grade_type,
+        "grade_value": grade_value
+    }
+
 # Utility tools
 
 async def fetch_url_content(url: str) -> Dict[str, Any]:
