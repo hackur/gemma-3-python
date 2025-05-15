@@ -7,7 +7,7 @@ dependencies = [
     "fastapi>=0.104.0",
     "uvicorn>=0.24.0",
     "llama-cpp-python>=0.2.11",
-    "pydantic>=2.4.2",
+    "pydantic==2.11.4",
     "python-dotenv>=1.0.0",
     "loguru>=0.7.2",
     "psutil>=5.9.0",
@@ -21,6 +21,12 @@ dependencies = [
     "python-multipart>=0.0.20",
     "urllib3>=2.4.0",
     "honcho>=2.0.0",
+    "attrs==25.3.0",
+    "jsonschema==4.23.0",
+    "jsonschema-specifications==2025.4.1",
+    "referencing==0.36.2",
+    "rpds-py==0.25.0",
+    "pydantic-core==2.33.2",
 ]
 requires-python = ">=3.9"
 
