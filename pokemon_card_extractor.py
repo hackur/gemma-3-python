@@ -1,8 +1,30 @@
 """
 Pokemon Card Extractor
 
-This module provides functionality for extracting cards from graded slabs
-and performing operations on graded Pokemon cards.
+This module provides functionality for extracting Pokemon cards from graded slabs
+and performing operations on graded Pokemon cards while preserving original image dimensions.
+
+Key features:
+- Detection of graded card cases (PSA, BGS, CGC)
+- Extraction of just the card from its protective case
+- Extraction of the grade label for OCR processing
+- Preservation of original image dimensions and quality during processing
+- Visualization of detected regions
+
+Typical usage example:
+
+    import asyncio
+    from pokemon_card_extractor import extract_graded_card
+
+    async def process_graded_card():
+        result = await extract_graded_card(
+            image_url="https://example.com/graded_pokemon_card.jpg"
+        )
+        if result["is_graded_card"]:
+            print(f"Detected {result['grade_type']} graded card")
+            print(f"Original dimensions: {result['original_dimensions']}")
+
+    asyncio.run(process_graded_card())
 """
 
 import os

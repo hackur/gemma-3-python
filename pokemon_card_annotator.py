@@ -1,7 +1,30 @@
 """
 Pokemon Card Annotator
 
-This module provides functionality for annotating Pokemon cards with labels and bounding boxes.
+This module provides functionality for annotating Pokemon cards with labels and bounding boxes,
+while preserving original image dimensions and quality.
+
+Features:
+- Detection of card regions (name, image, type, HP, attacks)
+- Annotation with colored boxes (rectangle or circle)
+- Custom label colors (red, green, blue, yellow, white, black)
+- Resolution-independent annotation that works with any card size
+- Preservation of original image quality
+
+Typical usage example:
+
+    import asyncio
+    from pokemon_card_annotator import annotate_pokemon_card
+    
+    async def add_annotations():
+        result = await annotate_pokemon_card(
+            image_url="https://example.com/pokemon_card.jpg",
+            label_color="green",
+            box_type="rectangle"
+        )
+        print(f"Annotations created for {len(result['annotations'])} regions")
+        
+    asyncio.run(add_annotations())
 """
 
 import os

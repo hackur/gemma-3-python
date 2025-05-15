@@ -1,8 +1,28 @@
 """
 Pokemon Card Analyzer
 
-This module provides functionality for analyzing Pokemon card images,
+This module provides specialized functionality for analyzing Pokemon card images,
 detecting card types, and extracting information from them.
+
+The analyzer can identify:
+- Whether an image contains a Pokemon card
+- If it's the front or back of a card
+- Card features such as name, image, HP, types, attacks
+
+Typical usage example:
+
+    import asyncio
+    from pokemon_card_analyzer import analyze_pokemon_card
+
+    async def analyze_card():
+        result = await analyze_pokemon_card(
+            image_url="https://example.com/pokemon_card.jpg",
+            analyze_text=True
+        )
+        print(f"Card type: {result['card_type']}")
+        print(f"Detected contents: {result['detected_contents']}")
+
+    asyncio.run(analyze_card())
 """
 
 import os

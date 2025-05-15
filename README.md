@@ -36,18 +36,26 @@ mkdir -p gemma-3-4b-it-q4_0
 ## Project Structure
 
 ```
-.
-├── gemma3.py              # Main server implementation
-├── gemma_proxy.py         # Tool calling framework proxy server
-├── example_tools.py       # Implementation of image processing tools
-├── benchmarks/            # Performance benchmarking tools
-│   ├── __init__.py
-│   └── benchmark_runner.py
+gemma-3-python/
+├── gemma_proxy.py         # Main server implementation
+├── example_tools.py       # General purpose tool implementations
+├── tool_parser.py         # Tool parsing utilities
 ├── utils/
-│   ├── __init__.py
-│   ├── function_handler.py # Function execution utilities
-│   └── monitoring.py      # System monitoring utilities
-├── prompts/
+│   ├── monitoring.py      # Performance monitoring
+│   └── schema_validator.py # JSON schema validation
+│
+├── # Pokemon Card Analysis Modules
+├── pokemon_card_utils.py     # Shared utilities for Pokemon card tools
+├── pokemon_card_analyzer.py  # Card analysis functionality
+├── pokemon_card_annotator.py # Card annotation tools
+├── pokemon_card_extractor.py # Graded card extraction tools
+│
+├── # Test Scripts
+├── test_graded_card_extraction.py # Test for graded card extraction
+├── test_annotate_pokemon.py      # Test for card annotation
+│
+├── docs/                  # Documentation and example images
+└── samples/              # Sample data for testing
 │   └── system_prompt.md   # System prompt template
 ├── scripts/              # Directory for Python scripts
 │   └── sample_script.py   # Example script
@@ -162,17 +170,50 @@ def custom_function(param1: str, param2: int) -> dict:
 
 ## Image Processing Tools
 
-The server includes several advanced image processing tools specifically designed for Pokemon card analysis:
+The project includes several image processing tools as examples:
 
-### 1. analyze_image
+### General Image Processing Tools
 
-Analyzes an image and returns detailed information about its contents, with special handling for Pokemon cards.
+#### 1. analyze_image
+
+Analyze an image and return descriptions of its contents.
 
 ```bash
 curl http://localhost:1338/v1/tools/analyze_image \
   -H "Content-Type: application/json" \
   -d '{
     "image_url": "https://example.com/image.jpg",
+    "analyze_objects": true,
+    "analyze_text": false
+  }'
+```
+
+#### 2. apply_image_filter
+
+Apply various filters and transformations to an image.
+
+```bash
+curl http://localhost:1338/v1/tools/apply_image_filter \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image_url": "https://example.com/image.jpg",
+    "filter_type": "grayscale"
+  }'
+```
+
+### Pokemon Card Analysis Tools
+
+The project includes specialized tools for Pokemon card analysis, organized in modular files:
+
+#### 1. analyze_pokemon_card (from pokemon_card_analyzer.py)
+
+Analyze a Pokemon card image and extract information about its contents.
+
+```bash
+curl http://localhost:1338/v1/tools/analyze_pokemon_card \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image_url": "https://example.com/pokemon_card.jpg",
     "analyze_objects": true,
     "analyze_text": false
   }'
@@ -195,7 +236,7 @@ curl http://localhost:1338/v1/tools/smart_crop_image \
 
 ### 3. annotate_pokemon_card
 
-Identifies and annotates parts of a Pokemon card with bounding boxes and labels.
+Identify and annotate parts of a Pokemon card with bounding boxes and labels.
 
 ```bash
 curl http://localhost:1338/v1/tools/annotate_pokemon_card \

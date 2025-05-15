@@ -1,7 +1,21 @@
 """
 Pokemon Card Utilities
 
-This module provides utility functions used across Pokemon card analysis tools.
+This module provides shared utility functions used across all Pokemon card analysis tools.
+Functions include image loading, data URI conversion, coordinate scaling, and color analysis.
+
+Typical usage example:
+
+    from pokemon_card_utils import load_image, image_to_data_uri
+
+    # Load an image from a URL or data URI
+    image = load_image("https://example.com/pokemon_card.jpg")
+
+    # Convert an image to a data URI for API requests
+    data_uri = image_to_data_uri(image)
+
+    # Scale coordinates between different image dimensions
+    new_coords = scale_coordinates((10, 20, 50, 70), (100, 100), (200, 200))
 """
 
 import os
