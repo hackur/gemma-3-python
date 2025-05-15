@@ -129,7 +129,7 @@ def resize_image(
     original_width, original_height = image.size
     
     # Calculate new dimensions
-    if width and height:
+    if width is not None and height is not None:
         new_width, new_height = width, height
         if maintain_aspect_ratio:
             # Calculate the scaling factor
@@ -141,7 +141,7 @@ def resize_image(
             
             new_width = int(original_width * ratio)
             new_height = int(original_height * ratio)
-    elif width:
+    elif width is not None:
         # Only width specified
         if maintain_aspect_ratio:
             ratio = width / original_width
@@ -150,7 +150,7 @@ def resize_image(
         else:
             new_width = width
             new_height = original_height
-    elif height:
+    elif height is not None:
         # Only height specified
         if maintain_aspect_ratio:
             ratio = height / original_height
@@ -169,6 +169,90 @@ def resize_image(
     # Convert the resized image to base64
     buffer = BytesIO()
     resized_image.save(buffer, format="PNG")
+    base64_image = base64.b64encode(buffer.getvalue()).decode("utf-8")
+    
+    return f"data:image/png;base64,{base64_image}"
+
+def smart_crop_image(
+    image_url: str,
+    target_width: int,
+    target_height: int,
+    focus_area: str = "center"
+) -> str:
+    """
+    Smart crop an image to the specified dimensions focusing on the most important area
+    
+    Args:
+        image_url: URL or base64 data URI of the image to crop
+        target_width: Target width in pixels
+        target_height: Target height in pixels
+        focus_area: Area to focus on (center, top, bottom, left, right, or auto)
+        
+    Returns:
+        Base64-encoded data URI of the cropped image
+    """
+    # Load the image
+    image = _load_image(image_url)
+    
+    # Get original dimensions
+    original_width, original_height = image.size
+    
+    # Calculate crop box based on focus area
+    if focus_area == "auto":
+        # In a real implementation, this would use image analysis to find the most important area
+        # For this example, we'll just use the center as a fallback
+        focus_area = "center"
+    
+    # Calculate the crop box dimensions
+    # We want to maintain the target aspect ratio
+    target_aspect = target_width / target_height
+    original_aspect = original_width / original_height
+    
+    if target_aspect > original_aspect:
+        # Target is wider than original
+        # Crop height to match target aspect ratio
+        crop_height = int(original_width / target_aspect)
+        crop_width = original_width
+        
+        # Determine y-offset based on focus area
+        if focus_area == "center":
+            y_offset = (original_height - crop_height) // 2
+        elif focus_area == "top":
+            y_offset = 0
+        elif focus_area == "bottom":
+            y_offset = original_height - crop_height
+        else:
+            y_offset = (original_height - crop_height) // 2
+        
+        crop_box = (0, y_offset, crop_width, y_offset + crop_height)
+    else:
+        # Target is taller than original
+        # Crop width to match target aspect ratio
+        crop_width = int(original_height * target_aspect)
+        crop_height = original_height
+        
+        # Determine x-offset based on focus area
+        if focus_area == "center":
+            x_offset = (original_width - crop_width) // 2
+        elif focus_area == "left":
+            x_offset = 0
+        elif focus_area == "right":
+            x_offset = original_width - crop_width
+        else:
+            x_offset = (original_width - crop_width) // 2
+        
+        crop_box = (x_offset, 0, x_offset + crop_width, crop_height)
+    
+    # Crop the image
+    cropped_image = image.crop(crop_box)
+    
+    # Resize to target dimensions if needed
+    if cropped_image.size != (target_width, target_height):
+        cropped_image = cropped_image.resize((target_width, target_height), Image.LANCZOS)
+    
+    # Convert the cropped image to base64
+    buffer = BytesIO()
+    cropped_image.save(buffer, format="PNG")
     base64_image = base64.b64encode(buffer.getvalue()).decode("utf-8")
     
     return f"data:image/png;base64,{base64_image}"

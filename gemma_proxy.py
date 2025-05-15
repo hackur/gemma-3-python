@@ -26,10 +26,13 @@ from tool_framework import (
     ToolRegistry, ToolRequest, ToolResponse as ToolFrameworkResponse, 
     ToolResponseStatus, ToolError, ToolCategory, generate_tool_id
 )
-from tool_parser import ToolParser, ToolParseResult
 from tool_executor import ToolExecutor
+from tool_parser import ToolParser
+
+# Import example tools
+import example_tools
 from example_tools import (
-    analyze_image, apply_image_filter, resize_image, 
+    analyze_image, apply_image_filter, resize_image, smart_crop_image,
     fetch_url_content, get_current_time
 )
 
@@ -127,8 +130,8 @@ validation_errors: Dict[str, List[Dict[str, Any]]] = {}
 
 # Initialize tool framework components
 tool_registry = ToolRegistry()
-tool_parser = ToolParser(tool_registry)
 tool_executor = ToolExecutor(tool_registry)
+tool_parser = ToolParser(tool_registry)
 
 # Register example tools
 tool_registry.register_tool(
@@ -155,7 +158,6 @@ tool_registry.register_tool(
         "required": ["image_url"]
     },
     handler_fn=analyze_image,
-    is_async=True,
     category=ToolCategory.IMAGE
 )
 
@@ -218,6 +220,39 @@ tool_registry.register_tool(
         "required": ["image_url"]
     },
     handler_fn=resize_image,
+    category=ToolCategory.IMAGE
+)
+
+tool_registry.register_tool(
+    name="smart_crop_image",
+    description="Smart crop an image to the specified dimensions focusing on the most important area",
+    parameters={
+        "type": "object",
+        "properties": {
+            "image_url": {
+                "type": "string",
+                "description": "URL or base64 data URI of the image to crop"
+            },
+            "target_width": {
+                "type": "integer",
+                "description": "Target width in pixels",
+                "minimum": 1
+            },
+            "target_height": {
+                "type": "integer",
+                "description": "Target height in pixels",
+                "minimum": 1
+            },
+            "focus_area": {
+                "type": "string",
+                "description": "Area to focus on (center, top, bottom, left, right, or auto)",
+                "enum": ["center", "top", "bottom", "left", "right", "auto"],
+                "default": "center"
+            }
+        },
+        "required": ["image_url", "target_width", "target_height"]
+    },
+    handler_fn=smart_crop_image,
     category=ToolCategory.IMAGE
 )
 
@@ -1005,6 +1040,52 @@ async def list_tools():
         "categories": [category.value for category in ToolCategory],
         "timestamp": datetime.utcnow().isoformat()
     }
+
+# Direct tool endpoints for testing
+@app.post("/v1/tools/{tool_name}")
+async def execute_tool_directly(tool_name: str, request: Request):
+    """Execute a tool directly without going through the chat completion endpoint"""
+    try:
+        # Parse request body
+        body = await request.json()
+        
+        # Create tool request
+        tool_request = ToolRequest(
+            name=tool_name,
+            arguments=body,
+            tool_call_id=generate_tool_id()
+        )
+        
+        # Execute tool
+        tool_response = await tool_executor.execute_tool(tool_request)
+        
+        # Return response
+        if tool_response.status == ToolResponseStatus.SUCCESS:
+            return tool_response.content
+        else:
+            error_message = "Unknown error"
+            if hasattr(tool_response, 'error') and tool_response.error:
+                error_message = tool_response.error.message
+            
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "Tool execution failed",
+                    "message": error_message
+                }
+            )
+    except HTTPException as he:
+        # Re-raise HTTP exceptions
+        raise he
+    except Exception as e:
+        logger.error(f"Error executing tool {tool_name}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Internal server error",
+                "message": str(e)
+            }
+        )
 
 # Monitoring endpoints
 @app.get("/v1/monitoring/validation-errors")
