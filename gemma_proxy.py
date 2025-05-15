@@ -153,6 +153,18 @@ tool_registry.register_tool(
                 "type": "boolean",
                 "description": "Whether to analyze text in the image",
                 "default": False
+            },
+            "temperature": {
+                "type": "number",
+                "description": "Temperature for generation (lower = more consistent)",
+                "default": 0.2,
+                "minimum": 0.0,
+                "maximum": 1.0
+            },
+            "seed": {
+                "type": "integer",
+                "description": "Random seed for consistent results",
+                "default": 42
             }
         },
         "required": ["image_url"]
