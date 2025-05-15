@@ -35,6 +35,7 @@ from example_tools import (
     analyze_image, apply_image_filter, resize_image, smart_crop_image,
     fetch_url_content, get_current_time
 )
+from annotate_pokemon_card import annotate_pokemon_card
 
 # Configure detailed logging with rotation and structured format
 LOG_FILE = 'gemma_proxy.log'
@@ -278,14 +279,43 @@ tool_registry.register_tool(
             },
             "focus_area": {
                 "type": "string",
-                "description": "Area to focus on (center, top, bottom, left, right, or auto)",
-                "enum": ["center", "top", "bottom", "left", "right", "auto"],
+                "description": "Area to focus on when cropping (center, top, bottom, left, right)",
+                "enum": ["center", "top", "bottom", "left", "right"],
                 "default": "center"
             }
         },
         "required": ["image_url", "target_width", "target_height"]
     },
     handler_fn=smart_crop_image,
+    category=ToolCategory.IMAGE
+)
+
+tool_registry.register_tool(
+    name="annotate_pokemon_card",
+    description="Identify and annotate parts of a Pokemon card with bounding boxes and labels",
+    parameters={
+        "type": "object",
+        "properties": {
+            "image_url": {
+                "type": "string",
+                "description": "URL or base64 data URI of the Pokemon card image"
+            },
+            "label_color": {
+                "type": "string",
+                "description": "Color of the labels and bounding boxes",
+                "enum": ["red", "green", "blue", "yellow", "white", "black"],
+                "default": "red"
+            },
+            "box_type": {
+                "type": "string",
+                "description": "Type of bounding box to draw",
+                "enum": ["rectangle", "circle"],
+                "default": "rectangle"
+            }
+        },
+        "required": ["image_url"]
+    },
+    handler_fn=annotate_pokemon_card,
     category=ToolCategory.IMAGE
 )
 

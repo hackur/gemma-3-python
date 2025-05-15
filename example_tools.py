@@ -430,7 +430,7 @@ def resize_image(
     
     return f"data:image/png;base64,{base64_image}"
 
-def smart_crop_image(
+async def smart_crop_image(
     image_url: str,
     target_width: int,
     target_height: int,
@@ -454,10 +454,8 @@ def smart_crop_image(
     # Get original dimensions
     original_width, original_height = image.size
     
-    # Calculate crop box based on focus area
-    if focus_area == "auto":
-        # In a real implementation, this would use image analysis to find the most important area
-        # For this example, we'll just use the center as a fallback
+    # Default to center focus if not specified
+    if not focus_area:
         focus_area = "center"
     
     # Calculate the crop box dimensions

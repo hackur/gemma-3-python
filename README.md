@@ -14,6 +14,9 @@ An OpenAI-compatible API server implementation for Google's Gemma 3 language mod
 - Memory-efficient conversation handling
 - Built-in benchmarking suite
 - Extensive test coverage
+- Advanced image analysis tools for Pokemon cards
+- Smart image cropping with focus area detection
+- Automated card part annotation with bounding boxes and labels
 
 ## Installation
 
@@ -35,6 +38,8 @@ mkdir -p gemma-3-4b-it-q4_0
 ```
 .
 ├── gemma3.py              # Main server implementation
+├── gemma_proxy.py         # Tool calling framework proxy server
+├── example_tools.py       # Implementation of image processing tools
 ├── benchmarks/            # Performance benchmarking tools
 │   ├── __init__.py
 │   └── benchmark_runner.py
@@ -50,7 +55,10 @@ mkdir -p gemma-3-4b-it-q4_0
 │   ├── __init__.py
 │   ├── test_api.py      # API endpoint tests
 │   ├── test_functions.py # Function calling tests
-│   └── test_model.py    # Model behavior tests
+│   ├── test_model.py    # Model behavior tests
+│   ├── test_tool_executor.py # Tool execution tests
+│   ├── test_tool_framework.py # Tool framework tests
+│   └── test_tool_parser.py # Tool parsing tests
 ├── examples/            # Example implementations
 │   ├── sample_script.py
 │   └── test.sh
@@ -58,6 +66,11 @@ mkdir -p gemma-3-4b-it-q4_0
 │   ├── api.md         # API documentation
 │   ├── functions.md   # Function calling guide
 │   └── development.md # Development guide
+├── test_analyze_pokemon.py # Test script for Pokemon card analysis
+├── test_annotate_pokemon.py # Test script for Pokemon card annotation
+├── test_pokemon_smart_crop.py # Test script for smart cropping Pokemon cards
+├── output/             # Directory for test output (timestamped subdirectories)
+│   └── ANNOTATED_CARDS--* # Timestamped directories with annotation results
 └── requirements.txt    # Project dependencies
 ```
 
@@ -146,6 +159,57 @@ def custom_function(param1: str, param2: int) -> dict:
     # Implementation
     return {"result": "value"}
 ```
+
+## Image Processing Tools
+
+The server includes several advanced image processing tools specifically designed for Pokemon card analysis:
+
+### 1. analyze_image
+
+Analyzes an image and returns detailed information about its contents, with special handling for Pokemon cards.
+
+```bash
+curl http://localhost:1338/v1/tools/analyze_image \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image_url": "https://example.com/image.jpg",
+    "analyze_objects": true,
+    "analyze_text": false
+  }'
+```
+
+### 2. smart_crop_image
+
+Intelligently crops an image to specified dimensions while focusing on the most important area.
+
+```bash
+curl http://localhost:1338/v1/tools/smart_crop_image \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image_url": "https://example.com/image.jpg",
+    "target_width": 300,
+    "target_height": 400,
+    "focus_area": "center"
+  }'
+```
+
+### 3. annotate_pokemon_card
+
+Identifies and annotates parts of a Pokemon card with bounding boxes and labels.
+
+```bash
+curl http://localhost:1338/v1/tools/annotate_pokemon_card \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image_url": "https://example.com/pokemon_card.jpg",
+    "label_color": "red",
+    "box_type": "rectangle"
+  }'
+```
+
+Supported options:
+- **label_color**: red, green, blue, yellow, white, black
+- **box_type**: rectangle, circle
 
 ## Benchmarking
 
